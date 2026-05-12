@@ -34,7 +34,6 @@
 
         /* ===== تسجيل الدخول ===== */
         .auth-container {
-            display: none;
             position: fixed;
             top: 0;
             left: 0;
@@ -42,13 +41,14 @@
             height: 100%;
             background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
             z-index: 2000;
+            display: flex;
             align-items: center;
             justify-content: center;
             flex-direction: column;
         }
 
-        .auth-container.active {
-            display: flex;
+        .auth-container.hidden {
+            display: none;
         }
 
         .auth-box {
@@ -121,6 +121,15 @@
             color: var(--primary);
             cursor: pointer;
             font-weight: 600;
+        }
+
+        .auth-error {
+            background: #fee2e2;
+            color: #991b1b;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-size: 14px;
         }
 
         /* ===== Sidebar ===== */
@@ -285,10 +294,6 @@
             margin: 10px 0;
         }
 
-        .rating-star {
-            margin: 0 2px;
-        }
-
         /* ===== Modal ===== */
         .modal-content {
             border: none;
@@ -299,11 +304,6 @@
             background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
             color: white;
             border: none;
-        }
-
-        .close {
-            color: white;
-            opacity: 0.8;
         }
 
         /* ===== Buttons ===== */
@@ -456,13 +456,6 @@
             color: var(--text-muted);
         }
 
-        .badge-status {
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-        }
-
         .badge-success {
             background: #d1fae5;
             color: #065f46;
@@ -489,14 +482,21 @@
             margin-bottom: 15px;
             opacity: 0.5;
         }
+
+        .loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
     </style>
 </head>
 <body>
 
 <!-- ===== تسجيل الدخول والتسجيل ===== -->
-<div class="auth-container active" id="authContainer">
+<div class="auth-container" id="authContainer">
     <div class="auth-box">
         <h2 id="authTitle">تسجيل الدخول</h2>
+        <div id="authError" class="auth-error" style="display: none;"></div>
+
         <div id="loginForm">
             <input type="email" class="form-control" id="loginEmail" placeholder="البريد الإلكتروني">
             <input type="password" class="form-control" id="loginPassword" placeholder="كلمة المرور">
@@ -520,7 +520,7 @@
 </div>
 
 <!-- ===== Sidebar ===== -->
-<div class="sidebar shadow" id="sidebar">
+<div class="sidebar shadow" id="sidebar" style="display: none;">
     <div class="sidebar-header">
         <h3>المنصورية<span class="text-primary">.</span></h3>
         <small class="text-muted">نظام الخدمات الذكي</small>
@@ -558,7 +558,7 @@
 </div>
 
 <!-- ===== Main Content ===== -->
-<div class="main-content">
+<div class="main-content" id="mainContent" style="display: none;">
 
     <!-- ===== Dashboard ===== -->
     <div id="dashboard" class="page-section active">
@@ -819,7 +819,7 @@
                 </div>
             </div>
             <div class="table-responsive">
-                <table class="table" id="adminTable">
+                <table class="table">
                     <thead>
                         <tr>
                             <th>الكود</th>
@@ -1009,18 +1009,19 @@
     let spendingChart = null;
 
     // ===== التحقق من حالة المستخدم =====
-    onAuthStateChanged(auth, (user) => {
+    onAuthStateChanged(auth, async (user) => {
         if (user) {
             currentUser = user;
-            document.getElementById('authContainer').classList.remove('active');
-            loadUserData();
+            document.getElementById('authContainer').classList.add('hidden');
+            document.getElementById('sidebar').style.display = 'block';
+            document.getElementById('mainContent').style.display = 'block';
+            await loadUserData();
             loadDashboardData();
-            initializeApp();
         } else {
             currentUser = null;
-            document.getElementById('authContainer').classList.add('active');
+            document.getElementById('authContainer').classList.remove('hidden');
             document.getElementById('sidebar').style.display = 'none';
-            document.querySelector('.main-content').style.display = 'none';
+            document.getElementById('mainContent').style.display = 'none';
         }
     });
 
@@ -1029,6 +1030,9 @@
         const loginForm = document.getElementById('loginForm');
         const registerForm = document.getElementById('registerForm');
         const authTitle = document.getElementById('authTitle');
+        const authError = document.getElementById('authError');
+
+        authError.style.display = 'none';
 
         if (loginForm.style.display === 'none') {
             loginForm.style.display = 'block';
@@ -1044,17 +1048,18 @@
     window.handleLogin = async () => {
         const email = document.getElementById('loginEmail').value.trim();
         const password = document.getElementById('loginPassword').value;
+        const authError = document.getElementById('authError');
 
         if (!email || !password) {
-            showNotification('يرجى إدخال البريد الإلكتروني وكلمة المرور', 'error');
+            showAuthError('يرجى إدخال البريد الإلكتروني وكلمة المرور', authError);
             return;
         }
 
         try {
             await signInWithEmailAndPassword(auth, email, password);
-            showNotification('تم تسجيل الدخول بنجاح ✅', 'success');
         } catch (error) {
-            showNotification('بيانات الدخول غير صحيحة ❌', 'error');
+            const errorMsg = getAuthErrorMessage(error.code);
+            showAuthError(errorMsg, authError);
         }
     };
 
@@ -1063,19 +1068,27 @@
         const email = document.getElementById('registerEmail').value.trim();
         const password = document.getElementById('registerPassword').value;
         const confirm = document.getElementById('registerConfirm').value;
+        const authError = document.getElementById('authError');
 
         if (!name || !email || !password || !confirm) {
-            showNotification('يرجى ملء جميع الحقول', 'error');
+            showAuthError('يرجى ملء جميع الحقول', authError);
             return;
         }
 
         if (password !== confirm) {
-            showNotification('كلمات المرور غير م��طابقة', 'error');
+            showAuthError('كلمات المرور غير متطابقة', authError);
+            return;
+        }
+
+        if (password.length < 6) {
+            showAuthError('كلمة المرور يجب أن تكون 6 أحرف على الأقل', authError);
             return;
         }
 
         try {
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            
+            // إضافة بيانات المستخدم في Firestore
             await addDoc(collection(db, "users"), {
                 uid: userCredential.user.uid,
                 name: name,
@@ -1084,11 +1097,20 @@
                 joinDate: new Date(),
                 phone: ""
             });
-            showNotification('تم إنشاء الحساب بنجاح ✅', 'success');
-            document.getElementById('registerForm').style.display = 'none';
-            document.getElementById('loginForm').style.display = 'block';
+
+            showAuthError('تم إنشاء الحساب بنجاح! جاري تسجيل الدخول...', authError, 'success');
+            
+            setTimeout(() => {
+                document.getElementById('registerForm').style.display = 'none';
+                document.getElementById('loginForm').style.display = 'block';
+                document.getElementById('registerEmail').value = '';
+                document.getElementById('registerPassword').value = '';
+                document.getElementById('registerConfirm').value = '';
+                document.getElementById('registerName').value = '';
+            }, 1500);
         } catch (error) {
-            showNotification('فشل في إنشاء الحساب: ' + error.message, 'error');
+            const errorMsg = getAuthErrorMessage(error.code);
+            showAuthError(errorMsg, authError);
         }
     };
 
@@ -1100,6 +1122,26 @@
             showNotification('خطأ في تسجيل الخروج', 'error');
         }
     };
+
+    // ===== دالة مساعدة لرسائل الأخطاء =====
+    function getAuthErrorMessage(code) {
+        const errors = {
+            'auth/user-not-found': 'لم يتم العثور على هذا الحساب',
+            'auth/wrong-password': 'كلمة المرور غير صحيحة',
+            'auth/email-already-in-use': 'هذا البريد الإلكتروني مسجل بالفعل',
+            'auth/weak-password': 'كلمة المرور ضعيفة جداً',
+            'auth/invalid-email': 'البريد الإلكتروني غير صحيح',
+            'auth/operation-not-allowed': 'هذه العملية غير مسموحة',
+            'auth/too-many-requests': 'عدد محاولات كثيرة، حاول لاحقاً'
+        };
+        return errors[code] || 'حدث خطأ ما، حاول مجدداً';
+    }
+
+    function showAuthError(message, element, type = 'error') {
+        element.textContent = message;
+        element.style.display = 'block';
+        element.className = `auth-error ${type === 'success' ? 'success-message' : ''}`;
+    }
 
     // ===== تحميل بيانات المستخدم =====
     async function loadUserData() {
@@ -1188,7 +1230,7 @@
         const alertBox = document.getElementById('rechargeAlert');
 
         if (!code) {
-            showNotification('يرجى إدخال الكود', 'error');
+            showAlert(alertBox, 'يرجى إدخال الكود', 'danger');
             return;
         }
 
@@ -1197,7 +1239,7 @@
             const snap = await getDocs(q);
 
             if (snap.empty) {
-                alertBox.innerHTML = `<div class="alert alert-danger">الكود غير صالح!</div>`;
+                showAlert(alertBox, 'الكود غير صالح!', 'danger');
                 return;
             }
 
@@ -1205,7 +1247,7 @@
             const voucherData = voucherDoc.data();
 
             if (voucherData.isUsed) {
-                alertBox.innerHTML = `<div class="alert alert-warning">الكود مستخدم مسبقاً!</div>`;
+                showAlert(alertBox, 'الكود مستخدم مسبقاً!', 'warning');
                 return;
             }
 
@@ -1232,7 +1274,7 @@
                 date: new Date()
             });
 
-            alertBox.innerHTML = `<div class="alert alert-success">تم شحن ${voucherData.value} د.ع بنجاح ✅</div>`;
+            showAlert(alertBox, `تم شحن ${voucherData.value} د.ع بنجاح ✅`, 'success');
             document.getElementById('vCode').value = '';
             document.getElementById('walletBalance').innerHTML = myBalance.toLocaleString() + ' <small style="font-size: 20px;">د.ع</small>';
             document.getElementById('mainBalance').innerHTML = myBalance.toLocaleString() + ' <small style="font-size: 20px;">د.ع</small>';
@@ -1240,10 +1282,14 @@
             logTransaction('شحن', voucherData.value);
             loadDashboardData();
         } catch (error) {
-            alertBox.innerHTML = `<div class="alert alert-danger">حدث خطأ في العملية</div>`;
             console.error(error);
+            showAlert(alertBox, 'حدث خطأ في العملية', 'danger');
         }
     };
+
+    function showAlert(element, message, type) {
+        element.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+    }
 
     // ===== دالة سجل العمليات =====
     function logTransaction(type, amount) {
@@ -1281,9 +1327,14 @@
         const grid = document.getElementById('servicesGrid');
         grid.innerHTML = '';
 
+        if (allServices.length === 0) {
+            grid.innerHTML = '<div class="col-12 empty-state"><i class="bi bi-inbox"></i><p>لا توجد خدمات متاحة حالياً</p></div>';
+            return;
+        }
+
         allServices.forEach(service => {
             const card = document.createElement('div');
-            card.className = 'col-md-6 col-lg-4';
+            card.className = 'col-md-6 col-lg-4 service-item';
             card.innerHTML = `
                 <div class="service-card">
                     <div class="service-card-header" style="background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%); color: white;">
@@ -1299,7 +1350,7 @@
                         <div style="margin: 15px 0; display: flex; justify-content: space-between; align-items: center;">
                             <h4 style="color: var(--primary); margin: 0;">${service.price.toLocaleString()} د.ع</h4>
                         </div>
-                        <button class="btn btn-primary w-100" onclick="showServiceModal('${service.id}')">
+                        <button class="btn btn-primary w-100" onclick="buyService('${service.id}')">
                             اشتري الآن
                         </button>
                     </div>
@@ -1309,143 +1360,18 @@
         });
 
         // إضافة محقق البحث
-        document.getElementById('serviceSearch').addEventListener('input', (e) => {
-            const searchTerm = e.target.value.toLowerCase();
-            const cards = grid.querySelectorAll('.col-md-6');
-            cards.forEach(card => {
-                const serviceName = card.querySelector('h5').textContent.toLowerCase();
-                card.style.display = serviceName.includes(searchTerm) ? '' : 'none';
+        const searchInput = document.getElementById('serviceSearch');
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => {
+                const searchTerm = e.target.value.toLowerCase();
+                const items = grid.querySelectorAll('.service-item');
+                items.forEach(item => {
+                    const serviceName = item.querySelector('h5').textContent.toLowerCase();
+                    item.style.display = serviceName.includes(searchTerm) ? '' : 'none';
+                });
             });
-        });
-    }
-
-    // ===== عرض تفاصيل الخدمة =====
-    window.showServiceModal = (serviceId) => {
-        const service = allServices.find(s => s.id === serviceId);
-        if (!service) return;
-
-        const modalBody = document.getElementById('serviceModalBody');
-        document.getElementById('serviceModalTitle').textContent = service.name;
-
-        modalBody.innerHTML = `
-            <div class="text-center mb-4">
-                <div style="font-size: 64px; margin-bottom: 15px;">${service.emoji || '💼'}</div>
-                <h4>${service.name}</h4>
-                <p class="text-muted">${service.description}</p>
-            </div>
-
-            <div style="margin: 20px 0; padding: 15px; background: #f1f5f9; border-radius: 10px;">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <span>السعر:</span>
-                    <h5 style="color: var(--primary); margin: 0;">${service.price.toLocaleString()} د.ع</h5>
-                </div>
-            </div>
-
-            <div style="margin: 15px 0;">
-                <div class="service-rating">
-                    ${'⭐'.repeat(Math.round(service.rating || 5))}
-                    <div style="margin-top: 10px; font-size: 14px; color: #94a3b8;">
-                        ${service.reviews || 0} تقييم، ${service.purchases || 0} عملية شراء
-                    </div>
-                </div>
-            </div>
-
-            <div style="margin: 20px 0; padding: 15px; background: #f1f5f9; border-radius: 10px;">
-                <h6 style="margin-bottom: 10px;">التقييمات:</h6>
-                <div id="reviewsList" style="max-height: 200px; overflow-y: auto;">
-                    <p class="text-muted small">لا توجد تقييمات حالياً</p>
-                </div>
-            </div>
-
-            <div style="margin: 20px 0;">
-                <label class="form-label">إضافة تقييمك:</label>
-                <div style="display: flex; gap: 10px; margin-bottom: 10px;">
-                    <select id="ratingSelect" class="form-select">
-                        <option value="5">⭐⭐⭐⭐⭐ (5 نجوم)</option>
-                        <option value="4">⭐⭐⭐⭐ (4 نجوم)</option>
-                        <option value="3">⭐⭐⭐ (3 نجوم)</option>
-                        <option value="2">⭐⭐ (نجمتان)</option>
-                        <option value="1">⭐ (نجمة واحدة)</option>
-                    </select>
-                </div>
-                <textarea id="reviewText" class="form-control" placeholder="اكتب تقييمك..." rows="3" style="margin-bottom: 10px;"></textarea>
-                <button class="btn btn-primary w-100" onclick="submitReview('${serviceId}')">إرسال التقييم</button>
-            </div>
-
-            <button class="btn btn-success w-100 mt-3" onclick="buyService('${serviceId}')">
-                شراء الخدمة الآن
-            </button>
-        `;
-
-        loadReviews(serviceId);
-        const modal = new bootstrap.Modal(document.getElementById('serviceModal'));
-        modal.show();
-    };
-
-    // ===== تحميل التقييمات =====
-    async function loadReviews(serviceId) {
-        try {
-            const reviewsSnap = await getDocs(
-                query(collection(db, "reviews"), where("serviceId", "==", serviceId))
-            );
-            
-            const reviewsList = document.getElementById('reviewsList');
-            if (reviewsSnap.empty) {
-                reviewsList.innerHTML = '<p class="text-muted small">لا توجد تقييمات حالياً</p>';
-                return;
-            }
-
-            reviewsList.innerHTML = '';
-            reviewsSnap.forEach(doc => {
-                const review = doc.data();
-                const reviewDiv = document.createElement('div');
-                reviewDiv.style.cssText = 'padding: 10px; border-bottom: 1px solid #e2e8f0;';
-                reviewDiv.innerHTML = `
-                    <div style="font-weight: 600; font-size: 14px;">${review.userName}</div>
-                    <div style="color: #f59e0b; margin: 5px 0;">
-                        ${'⭐'.repeat(review.rating)}
-                    </div>
-                    <div style="font-size: 13px; color: #64748b; margin: 5px 0;">${review.comment}</div>
-                    <div style="font-size: 12px; color: #94a3b8;">${new Date(review.date?.toDate?.() || review.date).toLocaleDateString('ar-IQ')}</div>
-                `;
-                reviewsList.appendChild(reviewDiv);
-            });
-        } catch (error) {
-            console.error("خطأ في تحميل التقييمات:", error);
         }
     }
-
-    // ===== إرسال التقييم =====
-    window.submitReview = async (serviceId) => {
-        const rating = parseInt(document.getElementById('ratingSelect').value);
-        const comment = document.getElementById('reviewText').value.trim();
-
-        if (!comment) {
-            showNotification('يرجى كتابة التقييم', 'error');
-            return;
-        }
-
-        try {
-            const userQ = query(collection(db, "users"), where("uid", "==", currentUser.uid));
-            const userSnap = await getDocs(userQ);
-            const userName = userSnap.empty ? 'مستخدم' : userSnap.docs[0].data().name;
-
-            await addDoc(collection(db, "reviews"), {
-                serviceId: serviceId,
-                userId: currentUser.uid,
-                userName: userName,
-                rating: rating,
-                comment: comment,
-                date: new Date()
-            });
-
-            showNotification('تم إضافة التقييم بنجاح ✅', 'success');
-            document.getElementById('reviewText').value = '';
-            loadReviews(serviceId);
-        } catch (error) {
-            showNotification('خطأ في إرسال التقييم', 'error');
-        }
-    };
 
     // ===== شراء الخدمة =====
     window.buyService = async (serviceId) => {
@@ -1454,6 +1380,7 @@
 
         if (myBalance < service.price) {
             showNotification('رصيدك غير كافٍ! يرجى الشحن أولاً', 'error');
+            navigateTo('wallet');
             return;
         }
 
@@ -1482,12 +1409,10 @@
             
             showNotification(`تم شراء ${service.name} بنجاح! سيتم التواصل معك قريباً`, 'success');
             
-            const modal = bootstrap.Modal.getInstance(document.getElementById('serviceModal'));
-            modal?.hide();
-            
             loadDashboardData();
             logTransaction('شراء', service.price);
         } catch (error) {
+            console.error(error);
             showNotification('خطأ في عملية الشراء', 'error');
         }
     };
@@ -1521,9 +1446,9 @@
         myPurchases.forEach(purchase => {
             const date = purchase.date?.toDate?.() || new Date(purchase.date);
             const statusBadge = {
-                'pending': '<span class="badge badge-warning">قيد الانتظار</span>',
+                'pending': '<span class="badge" style="background: #fef3c7; color: #92400e;">قيد الانتظار</span>',
                 'completed': '<span class="badge badge-success">مكتملة</span>',
-                'cancelled': '<span class="badge badge-danger">ملغاة</span>'
+                'cancelled': '<span class="badge" style="background: #fee2e2; color: #7f1d1d;">ملغاة</span>'
             };
 
             const tr = document.createElement('tr');
@@ -1531,9 +1456,9 @@
                 <td>${purchase.serviceName}</td>
                 <td>${purchase.price.toLocaleString()} د.ع</td>
                 <td>${date.toLocaleDateString('ar-IQ')}</td>
-                <td>${statusBadge[purchase.status] || '<span class="badge badge-secondary">غير معروفة</span>'}</td>
+                <td>${statusBadge[purchase.status] || '<span class="badge">غير معروفة</span>'}</td>
                 <td>
-                    <button class="btn btn-sm btn-outline-primary" onclick="editPurchaseStatus('${purchase.id}', '${purchase.status}')">
+                    <button class="btn btn-sm btn-outline-primary" style="border-color: var(--primary); color: var(--primary);" onclick="alert('جاري المعالجة')">
                         تحديث
                     </button>
                 </td>
@@ -1553,23 +1478,22 @@
         }
 
         try {
-            const codes = [];
             for (let i = 0; i < quantity; i++) {
                 const code = "MS-" + Math.random().toString(36).substring(2, 6).toUpperCase() + "-" + Math.floor(1000 + Math.random() * 9000);
-                const docRef = await addDoc(collection(db, "vouchers"), {
+                await addDoc(collection(db, "vouchers"), {
                     code: code,
                     value: value,
                     isUsed: false,
                     createdAt: new Date(),
                     createdBy: currentUser.uid
                 });
-                codes.push({ id: docRef.id, code: code });
             }
 
             showNotification(`تم توليد ${quantity} كود بنجاح ✅`, 'success');
             document.getElementById('genVal').value = '';
             loadAdminVouchers();
         } catch (error) {
+            console.error(error);
             showNotification('خطأ في توليد الكودات', 'error');
         }
     };
@@ -1594,7 +1518,7 @@
                 tr.innerHTML = `
                     <td><code>${voucher.code}</code></td>
                     <td>${voucher.value}</td>
-                    <td>${voucher.isUsed ? '<span class="badge badge-danger">مستخدم</span>' : '<span class="badge badge-success">متاح</span>'}</td>
+                    <td>${voucher.isUsed ? '<span class="badge" style="background: #fee2e2; color: #7f1d1d;">مستخدم</span>' : '<span class="badge badge-success">متاح</span>'}</td>
                     <td>${createdDate.toLocaleDateString('ar-IQ')}</td>
                     <td>
                         <button class="btn btn-sm btn-danger" onclick="deleteVoucher('${doc.id}')">
@@ -1651,7 +1575,6 @@
 
             showNotification('تم إضافة الخدمة بنجاح ✅', 'success');
             
-            // تنظيف النموذج
             document.getElementById('newServiceName').value = '';
             document.getElementById('newServicePrice').value = '';
             document.getElementById('newServiceDesc').value = '';
@@ -1663,6 +1586,7 @@
             loadDashboardData();
             loadAdminServices();
         } catch (error) {
+            console.error(error);
             showNotification('خطأ في إضافة الخدمة', 'error');
         }
     };
@@ -1684,7 +1608,6 @@
                     <td>${service.purchases || 0}</td>
                     <td>${'⭐'.repeat(Math.round(service.rating || 5))}</td>
                     <td>
-                        <button class="btn btn-sm btn-warning" onclick="editService('${doc.id}')">تعديل</button>
                         <button class="btn btn-sm btn-danger" onclick="deleteService('${doc.id}')">حذف</button>
                     </td>
                 `;
@@ -1703,7 +1626,7 @@
 
         try {
             await deleteDoc(doc(db, "services", serviceId));
-            showNotification('تم حذف الخدمة بنجاح', 'success');
+            showNotification('تم حذف الخدمة بنجاً', 'success');
             loadAdminServices();
             loadDashboardData();
         } catch (error) {
@@ -1718,11 +1641,12 @@
         document.getElementById(pageId).classList.add('active');
         event.currentTarget.classList.add('active');
 
-        // إعادة تحميل الإحصائيات عند فتح الإدارة
         if (pageId === 'admin') {
-            loadAdminVouchers();
-            loadAdminServices();
-            loadAdminStats();
+            setTimeout(() => {
+                loadAdminVouchers();
+                loadAdminServices();
+                loadAdminStats();
+            }, 100);
         }
 
         if (pageId === 'dashboard') {
@@ -1738,7 +1662,6 @@
     // ===== حفظ تغييرات الملف الشخصي =====
     window.saveProfileChanges = async () => {
         const name = document.getElementById('editName').value.trim();
-        const email = document.getElementById('editEmail').value.trim();
         const phone = document.getElementById('editPhone').value.trim();
 
         if (!name) {
@@ -1765,6 +1688,7 @@
                 modal?.hide();
             }
         } catch (error) {
+            console.error(error);
             showNotification('خطأ في حفظ التغييرات', 'error');
         }
     };
@@ -1887,19 +1811,6 @@
         notification.className = `notification ${type} show`;
         setTimeout(() => notification.classList.remove('show'), 4000);
     };
-
-    // ===== تهيئة الواجهة =====
-    function initializeApp() {
-        document.getElementById('sidebar').style.display = 'block';
-        document.querySelector('.main-content').style.display = 'block';
-    }
-
-    // تحميل البيانات عند تحميل الصفحة
-    window.addEventListener('load', () => {
-        if (currentUser) {
-            initializeApp();
-        }
-    });
 </script>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
