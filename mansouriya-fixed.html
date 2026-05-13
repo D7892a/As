@@ -34,18 +34,19 @@
 
         /* ===== تسجيل الدخول ===== */
         .auth-container {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
-            z-index: 2000;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-direction: column;
-        }
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, var(--...
+    z-index: 2000;
+    display: flex; /* غير هذه الكلمة */
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+}
+
 
         .auth-container.hidden {
             display: none;
@@ -1071,8 +1072,9 @@
         } else {
             currentUser = null;
             document.getElementById('authContainer').classList.remove('hidden');
-            document.getElementById('sidebar').style.display = 'none';
-            document.getElementById('mainContent').style.display = 'none';
+            document.getElementById('sidebar').style.display = 'block';
+document.getElementById('mainContent').style.display = 'block';
+
         }
     });
 
