@@ -1,0 +1,22 @@
+{
+  "name": "نظام الكاشير العراقي — إدارة المطاعم",
+  "short_name": "كاشير المطعم",
+  "description": "نظام نقاط بيع وإدارة مطاعم متكامل يعمل بالكامل بدون إنترنت",
+  "lang": "ar",
+  "dir": "rtl",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#fdf8f0",
+  "theme_color": "#c1272d",
+  "categories": ["business", "productivity", "food"],
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='96' fill='%23c1272d'/%3E%3Ctext x='50%25' y='50%25' font-size='260' text-anchor='middle' dominant-baseline='central'%3E%F0%9F%8D%BD%EF%B8%8F%3C/text%3E%3C/svg%3E",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

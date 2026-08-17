@@ -415,7 +415,7 @@ function renderCustomers() {
         <div class="card">
             <div class="table-wrap">
                 <table class="tbl">
-                    <thead><tr><th>العميل</th><th>الهاتف</th><th>النقاط</th><th>الطلبات</th><th>إجمالي الإنفاق</th><th>آخر زيارة</th><th>إجراءات</th></tr></thead>
+                    <thead><tr><th>العميل</th><th>المستوى</th><th>الهاتف</th><th>النقاط</th><th>الطلبات</th><th>إجمالي الإنفاق</th><th>آخر زيارة</th><th>إجراءات</th></tr></thead>
                     <tbody id="custTbody">${customerRows(enriched)}</tbody>
                 </table>
             </div>
@@ -431,9 +431,12 @@ function searchCustomers(v) {
     document.getElementById('custTbody').innerHTML = customerRows(list);
 }
 function customerRows(list) {
-    if (!list.length) return `<tr><td colspan="7"><div class="empty-state"><i class="bi bi-inbox"></i><p>لا يوجد عملاء</p></div></td></tr>`;
-    return list.map(c => `<tr>
+    if (!list.length) return `<tr><td colspan="8"><div class="empty-state"><i class="bi bi-inbox"></i><p>لا يوجد عملاء</p></div></td></tr>`;
+    return list.map(c => {
+        const ti = customerTier(c.id);
+        return `<tr>
         <td><div class="cell-main"><div class="cell-thumb" style="background:linear-gradient(135deg,var(--gold),var(--gold-dark));color:#fff;font-weight:800">${c.name.charAt(0)}</div><strong>${c.name}</strong></div></td>
+        <td><span class="tier-chip" style="--tc:${ti.color}">${ti.icon} ${ti.label}${ti.discount ? ` −${ti.discount}%` : ''}</span></td>
         <td style="direction:ltr;text-align:right">${c.phone}</td>
         <td>${getSettings().enablePoints ? `<span class="badge badge-gold"><i class="bi bi-star-fill"></i> ${c.points || 0}</span>` : '—'}</td>
         <td>${c.ordersCount}</td>
@@ -445,7 +448,7 @@ function customerRows(list) {
                 ${c.id !== 'cu1' ? `<button class="icon-btn" style="width:32px;height:32px;font-size:14px;background:#fee2e2;color:#b91c1c;border-color:#fecaca" onclick="delCustomer('${c.id}')" title="حذف"><i class="bi bi-trash"></i></button>` : ''}
             </div>
         </td>
-    </tr>`).join('');
+    </tr>`; }).join('');
 }
 function openCustomerForm(id) {
     const c = id ? getCustomer(id) : null;

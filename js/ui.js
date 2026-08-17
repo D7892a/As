@@ -43,7 +43,13 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') document.q
 
 /* ----- التنقل بين الصفحات ----- */
 const PAGE_TITLES = {
+    dashboard: { title: 'لوحة القيادة', sub: 'نظرة شاملة ولحظية على أداء المطعم' },
     pos: { title: 'نقطة البيع', sub: 'إنشاء طلب جديد وإتمام الدفع' },
+    delivery: { title: 'التوصيل (الدليفري)', sub: 'طلبات التوصيل والسائقون والمناطق' },
+    reservations: { title: 'الحجوزات', sub: 'حجز الطاولات مسبقاً وإدارة الضيوف' },
+    suppliers: { title: 'الموردون والمشتريات', sub: 'فواتير الشراء وذمم الموردين' },
+    payroll: { title: 'الرواتب والهدر', sub: 'كشوف رواتب الموظفين وسجل التالف' },
+    qrmenu: { title: 'المنيو الرقمي والتقييمات', sub: 'رمز QR للمنيو وآراء الزبائن' },
     orders: { title: 'الطلبات', sub: 'إدارة ومتابعة جميع الطلبات' },
     tables: { title: 'الطاولات', sub: 'إدارة صالة المطعم وحالة الطاولات' },
     kitchen: { title: 'شاشة المطبخ', sub: 'متابعة تحضير الطلبات لحظياً' },
@@ -63,6 +69,8 @@ const PAGE_TITLES = {
 
 /* الصلاحية المطلوبة لكل صفحة */
 const PAGE_PERMS = {
+    dashboard: 'dashboard', delivery: 'delivery', reservations: 'reservations',
+    suppliers: 'suppliers', payroll: 'payroll', qrmenu: 'qrmenu',
     pos: 'pos', orders: 'orders.view', tables: 'tables', kitchen: 'kitchen',
     products: 'products', categories: 'categories', offers: 'offers', inventory: 'inventory',
     sales: 'sales', expenses: 'expenses', shifts: 'shifts', customers: 'customers',
@@ -86,6 +94,8 @@ function navigate(page) {
     }
     // إعادة رسم الصفحة
     const renderer = {
+        dashboard: renderDashboard, delivery: renderDelivery, reservations: renderReservations,
+        suppliers: renderSuppliers, payroll: renderPayroll, qrmenu: renderQrMenu,
         pos: renderPOS, orders: renderOrders, tables: renderTables, kitchen: renderKitchen,
         products: renderProductsPage, categories: renderCategories, offers: renderOffers,
         inventory: renderInventory, sales: renderSales, expenses: renderExpenses,
@@ -108,6 +118,21 @@ function updateOrderBadge() {
     if (badge) badge.textContent = active;
     const ob = document.getElementById('offersBadge');
     if (ob) ob.textContent = getOffers().filter(isOfferLive).length;
+    // شارة التوصيل الجارية
+    const db_ = document.getElementById('deliveryBadge');
+    if (db_) {
+        const n = getDeliveries().filter(d => ['pending', 'assigned', 'onway'].includes(d.status)).length;
+        db_.textContent = n;
+        db_.style.display = n ? '' : 'none';
+    }
+    // شارة حجوزات اليوم
+    const rb = document.getElementById('resBadge');
+    if (rb) {
+        const today = new Date().toISOString().slice(0, 10);
+        const n = getReservations().filter(r => r.date === today && r.status === 'booked').length;
+        rb.textContent = n;
+        rb.style.display = n ? '' : 'none';
+    }
 }
 
 /* ----- تحديث اسم الكاشير والمطعم في الواجهة ----- */

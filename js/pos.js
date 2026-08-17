@@ -6,6 +6,8 @@ let cart = [];
 let cartCustomerId = 'cu1';
 let cartOrderType = 'dine';   // dine | take | delivery
 let cartTableId = null;
+let cartZoneId = null;
+let cartAddress = '';
 let activeCat = 'all';
 let posSearch = '';
 
@@ -140,6 +142,10 @@ function clearCart() {
 }
 
 function setOrderType(t) { cartOrderType = t; if (t !== 'dine') cartTableId = null; renderCart(); }
+function setCartZone(id) {
+    cartZoneId = id || null;
+    renderCart();
+}
 function setCartCustomer(id) { cartCustomerId = id; renderCart(); }
 function setCartTable(id) { cartTableId = id || null; renderCart(); }
 
@@ -148,9 +154,19 @@ function cartTotals() {
     const subtotal = cart.reduce((sum, i) => sum + i.price * i.qty, 0);
     const tax = s.enableTax ? Math.round(subtotal * (s.taxRate / 100)) : 0;
     const service = Math.round(subtotal * ((s.serviceCharge || 0) / 100));
-    const discount = window._cartDiscount || 0;
-    const total = Math.max(0, subtotal + tax + service - discount);
-    return { subtotal, tax, service, discount, total, items: cart.reduce((n, i) => n + i.qty, 0) };
+    // أجرة التوصيل حسب المنطقة
+    const zone = (cartOrderType === 'delivery' && cartZoneId) ? getZone(cartZoneId) : null;
+    const deliveryFee = zone ? Number(zone.fee || 0) : 0;
+    // خصم مستوى الولاء تلقائياً
+    let tierDiscount = 0, tierInfo = null;
+    if (cartCustomerId && cartCustomerId !== 'cu1' && s.enablePoints) {
+        tierInfo = customerTier(cartCustomerId);
+        if (tierInfo.discount) tierDiscount = Math.round(subtotal * tierInfo.discount / 100);
+    }
+    const manual = window._cartDiscount || 0;
+    const discount = manual + tierDiscount;
+    const total = Math.max(0, subtotal + tax + service + deliveryFee - discount);
+    return { subtotal, tax, service, deliveryFee, discount, manual, tierDiscount, tierInfo, total, items: cart.reduce((n, i) => n + i.qty, 0) };
 }
 
 function renderCart() {
@@ -168,7 +184,9 @@ function renderCart() {
         <i class="bi bi-person-fill" style="color:var(--muted);font-size:18px"></i>
         <div style="flex:1;min-width:0">
             <div style="font-size:11px;color:var(--muted);font-weight:600">العميل</div>
-            <div style="font-size:13.5px;font-weight:700">${cust.name}</div>
+            <div style="font-size:13.5px;font-weight:700">${cust.name}
+                ${cartCustomerId !== 'cu1' && getSettings().enablePoints ? (() => { const ti = customerTier(cartCustomerId); return `<span class="tier-chip" style="--tc:${ti.color}">${ti.icon} ${ti.label}</span>`; })() : ''}
+            </div>
         </div>
         <button class="btn btn-light btn-sm" onclick="openCustomerPicker()"><i class="bi bi-three-dots"></i></button>`;
 
@@ -185,6 +203,17 @@ function renderCart() {
                     <select class="input input-sm" onchange="setCartTable(this.value)" style="padding:4px 8px;font-size:13px;font-weight:700">
                         <option value="">بدون طاولة</option>
                         ${free.map(t => `<option value="${t.id}" ${cartTableId === t.id ? 'selected' : ''}>${t.name} — ${t.zone} (${t.seats} كراسي)</option>`).join('')}
+                    </select>
+                </div>`;
+        } else if (cartOrderType === 'delivery' && getSettings().enableDelivery) {
+            tableRow.style.display = 'flex';
+            tableRow.innerHTML = `
+                <i class="bi bi-geo-alt-fill" style="color:var(--muted);font-size:18px"></i>
+                <div style="flex:1;min-width:0">
+                    <div style="font-size:11px;color:var(--muted);font-weight:600">منطقة التوصيل</div>
+                    <select class="input input-sm" onchange="setCartZone(this.value)" style="padding:4px 8px;font-size:13px;font-weight:700">
+                        <option value="">بدون أجرة توصيل</option>
+                        ${getZones().map(z => `<option value="${z.id}" ${cartZoneId === z.id ? 'selected' : ''}>${z.name} — ${moneyNum(z.fee)}</option>`).join('')}
                     </select>
                 </div>`;
         } else { tableRow.style.display = 'none'; tableRow.innerHTML = ''; }
@@ -218,7 +247,9 @@ function renderCart() {
         <div class="totals-row"><span>المجموع الفرعي (${t.items} صنف)</span><span>${moneyNum(t.subtotal)}</span></div>
         ${s.enableTax ? `<div class="totals-row"><span>الضريبة (${s.taxRate}%)</span><span>${moneyNum(t.tax)}</span></div>` : ''}
         ${s.serviceCharge ? `<div class="totals-row"><span>رسوم خدمة (${s.serviceCharge}%)</span><span>${moneyNum(t.service)}</span></div>` : ''}
-        ${t.discount ? `<div class="totals-row discount"><span>الخصم</span><span>− ${moneyNum(t.discount)}</span></div>` : ''}
+        ${t.deliveryFee ? `<div class="totals-row"><span><i class="bi bi-truck"></i> أجرة التوصيل</span><span>${moneyNum(t.deliveryFee)}</span></div>` : ''}
+        ${t.tierDiscount ? `<div class="totals-row discount"><span>${t.tierInfo.icon} خصم عميل ${t.tierInfo.label} (${t.tierInfo.discount}%)</span><span>− ${moneyNum(t.tierDiscount)}</span></div>` : ''}
+        ${t.manual ? `<div class="totals-row discount"><span>خصم يدوي</span><span>− ${moneyNum(t.manual)}</span></div>` : ''}
         <div class="totals-row grand"><span>الإجمالي</span><span>${moneyNum(t.total)}</span></div>`;
 
     // الأزرار
@@ -307,6 +338,8 @@ function openPayment() {
         <div class="stats-grid" style="margin-bottom:8px">
             <div class="stat gold"><div class="stat-label">الإجمالي المطلوب</div><div class="stat-value" style="font-size:22px">${moneyNum(t.total)}</div></div>
             <div class="stat green"><div class="stat-label">عدد الأصناف</div><div class="stat-value">${t.items}</div></div>
+            ${t.deliveryFee ? `<div class="stat blue"><div class="stat-label">منها أجرة توصيل</div><div class="stat-value" style="font-size:19px">${moneyNum(t.deliveryFee)}</div></div>` : ''}
+            ${t.discount ? `<div class="stat purple"><div class="stat-label">إجمالي الخصم</div><div class="stat-value" style="font-size:19px">${moneyNum(t.discount)}</div></div>` : ''}
         </div>
         <div class="field">
             <label>طريقة الدفع</label>
@@ -330,6 +363,10 @@ function openPayment() {
                 ${[t.total, Math.ceil(t.total/1000)*1000, Math.ceil(t.total/5000)*5000, Math.ceil(t.total/10000)*10000, 25000, 50000].filter((v,i,a)=>a.indexOf(v)===i).slice(0,5).map(v => `<button class="pill" onclick="document.getElementById('paidAmount').value=${v};calcChange()">${moneyNum(v)}</button>`).join('')}
             </div>
         </div>
+        ${cartOrderType === 'delivery' ? `<div class="field">
+            <label><i class="bi bi-geo-alt"></i> عنوان التوصيل</label>
+            <textarea class="input" id="deliveryAddress" placeholder="محلة / زقاق / دار / أقرب نقطة دالة">${cartAddress}</textarea>
+        </div>` : ''}
         <div class="field">
             <label>ملاحظات على الطلب (اختياري)</label>
             <textarea class="input" id="orderNotes" placeholder="مثال: بدون بصل، حار..."></textarea>
@@ -365,6 +402,7 @@ function completePayment() {
         if (paid < t.total) { toast('المبلغ المدفوع أقل من الإجمالي', 'error'); return; }
     }
     const notes = (document.getElementById('orderNotes')?.value || '').trim();
+    cartAddress = (document.getElementById('deliveryAddress')?.value || '').trim();
     const cust = getCustomer(cartCustomerId);
 
     const order = {
@@ -378,6 +416,10 @@ function completePayment() {
         change: Math.max(0, paid - t.total),
         orderType: cartOrderType,
         orderTypeLabel: ORDER_TYPES[cartOrderType].label,
+        deliveryFee: t.deliveryFee,
+        tierDiscount: t.tierDiscount,
+        zoneId: cartOrderType === 'delivery' ? cartZoneId : null,
+        address: cartOrderType === 'delivery' ? cartAddress : '',
         tableId: cartOrderType === 'dine' ? cartTableId : null,
         tableName: cartOrderType === 'dine' && cartTableId ? (getTable(cartTableId)?.name || '') : '',
         customerId: cartCustomerId,
@@ -389,10 +431,23 @@ function completePayment() {
     };
     const saved = api.addOrder(order);
 
+    // إنشاء سجل توصيل تلقائياً
+    if (saved.orderType === 'delivery' && getSettings().enableDelivery) {
+        api.addDelivery({
+            orderId: saved.id, orderNumber: saved.number,
+            customerName: saved.customerName, phone: saved.customerPhone,
+            zoneId: saved.zoneId, address: saved.address || '',
+            fee: saved.deliveryFee || 0, total: saved.total, status: 'pending'
+        });
+        toast('أُضيف الطلب إلى قائمة التوصيل 🚚', 'info', 2500);
+    }
+
     // إعادة ضبط
     cart = [];
     cartCustomerId = 'cu1';
     cartTableId = null;
+    cartZoneId = null;
+    cartAddress = '';
     window._cartDiscount = 0;
     closeModal('dynModal');
     renderCart();
