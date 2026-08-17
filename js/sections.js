@@ -76,12 +76,20 @@ function renderOrders() {
             </div>
         </div>`;
     updateOrderBadge();
+    applyPermissions();
 }
 function setOrdersFilter(f) { ordersFilter = f; renderOrders(); }
 function setOrderStatus(id, status) {
+    if (status === 'cancelled' && !can('orders.cancel')) { denied(); return; }
+    if (!can('orders.status')) { denied(); return; }
     api.updateOrderStatus(id, status);
     renderOrders();
     toast(`تم تحديث حالة الطلب إلى: ${STATUS_MAP[status].label}`, 'success');
+}
+function deleteOrderGuarded(id) {
+    if (!can('orders.delete')) { denied(); return; }
+    if (!confirmAction('حذف الطلب نهائياً؟')) return;
+    api.deleteOrder(id); closeModal('dynModal'); renderOrders(); toast('تم حذف الطلب', 'success');
 }
 function viewOrder(id) {
     const o = getOrder(id);
@@ -112,7 +120,8 @@ function viewOrder(id) {
         </div>
     `, `<button class="btn btn-ghost" onclick="closeModal('dynModal')">إغلاق</button>
         <button class="btn btn-primary" onclick="showReceipt('${o.id}')"><i class="bi bi-printer"></i> طباعة الإيصال</button>
-        <button class="btn btn-danger" onclick="if(confirmAction('حذف الطلب؟')){api.deleteOrder('${o.id}');closeModal('dynModal');renderOrders();toast('تم الحذف','success')}"><i class="bi bi-trash"></i></button>`, 'lg');
+        <button class="btn btn-danger" data-perm="orders.delete" onclick="deleteOrderGuarded('${o.id}')"><i class="bi bi-trash"></i></button>`, 'lg');
+    applyPermissions();
 }
 
 /* ============ المنتجات ============ */
@@ -137,7 +146,7 @@ function renderProductsPage() {
             </div>
             <div class="spacer"></div>
             <button class="btn btn-gold" onclick="exportProductsPDF()"><i class="bi bi-filetype-pdf"></i> قائمة الطعام PDF</button>
-            <button class="btn btn-primary" onclick="openProductForm()"><i class="bi bi-plus-lg"></i> منتج جديد</button>
+            <button class="btn btn-primary" data-perm="products" onclick="guard('products', () => openProductForm())"><i class="bi bi-plus-lg"></i> وجبة جديدة</button>
         </div>
 
         <div class="card">
@@ -148,6 +157,7 @@ function renderProductsPage() {
                 </table>
             </div>
         </div>`;
+    applyPermissions();
 }
 let _prodCatFilter = 'all';
 function renderProdCatFilter() {
@@ -161,6 +171,7 @@ function refreshProductsRows(q = '') {
     if (_prodCatFilter !== 'all') list = list.filter(p => p.categoryId === _prodCatFilter);
     if (q.trim()) { const s = q.trim().toLowerCase(); list = list.filter(p => p.name.toLowerCase().includes(s)); }
     document.getElementById('productsTbody').innerHTML = productRows(list);
+    applyPermissions();
 }
 function productRows(list) {
     if (!list.length) return `<tr><td colspan="5"><div class="empty-state"><i class="bi bi-inbox"></i><p>لا توجد منتجات</p></div></td></tr>`;
@@ -174,9 +185,9 @@ function productRows(list) {
             <td>${p.available ? `<span class="badge badge-success">متوفر</span>` : `<span class="badge badge-danger">غير متوفر</span>`}</td>
             <td>
                 <div style="display:flex;gap:5px">
-                    <button class="icon-btn" style="width:32px;height:32px;font-size:14px" onclick="toggleAvail('${p.id}')" title="توفر"><i class="bi bi-${p.available ? 'eye-slash' : 'eye'}"></i></button>
-                    <button class="icon-btn" style="width:32px;height:32px;font-size:14px" onclick="openProductForm('${p.id}')" title="تعديل"><i class="bi bi-pencil"></i></button>
-                    <button class="icon-btn" style="width:32px;height:32px;font-size:14px;background:#fee2e2;color:#b91c1c;border-color:#fecaca" onclick="delProduct('${p.id}')" title="حذف"><i class="bi bi-trash"></i></button>
+                    <button class="icon-btn" style="width:32px;height:32px;font-size:14px" data-perm="products" onclick="guard('products', () => toggleAvail('${p.id}'))" title="توفر"><i class="bi bi-${p.available ? 'eye-slash' : 'eye'}"></i></button>
+                    <button class="icon-btn" style="width:32px;height:32px;font-size:14px" data-perm="products" onclick="guard('products', () => openProductForm('${p.id}'))" title="تعديل"><i class="bi bi-pencil"></i></button>
+                    <button class="icon-btn" style="width:32px;height:32px;font-size:14px;background:#fee2e2;color:#b91c1c;border-color:#fecaca" data-perm="products" onclick="guard('products', () => delProduct('${p.id}'))" title="حذف"><i class="bi bi-trash"></i></button>
                 </div>
             </td>
         </tr>`;
@@ -211,6 +222,10 @@ function openProductForm(id) {
                     <div class="field" style="flex:1"><label>رمز تعبيري (بدون صورة)</label><input class="input" id="pfEmoji" value="${p ? p.emoji : '🍽️'}" maxlength="2"></div>
                     <div class="field" style="flex:1"><label>التوفر</label><select class="input" id="pfAvail"><option value="true" ${!p || p.available ? 'selected' : ''}>متوفر</option><option value="false" ${p && !p.available ? 'selected' : ''}>غير متوفر</option></select></div>
                 </div>
+                <div class="row-flex">
+                    <div class="field" style="flex:1"><label>الكمية في المخزون</label><input class="input" id="pfStock" type="number" value="${p ? Number(p.stock || 0) : 50}"></div>
+                    <div class="field" style="flex:1"><label>تكلفة الوحدة</label><input class="input" id="pfCost" type="number" value="${p ? Number(p.cost || 0) : 0}"></div>
+                </div>
             </div>
         </div>
         <div class="field"><label>الوصف</label><textarea class="input" id="pfDesc" placeholder="وصف مختصر للمنتج">${p ? p.description || '' : ''}</textarea></div>
@@ -237,7 +252,9 @@ function saveProduct(id) {
         categoryId: document.getElementById('pfCat').value,
         emoji: document.getElementById('pfEmoji').value.trim() || '🍽️',
         available: document.getElementById('pfAvail').value === 'true',
-        description: document.getElementById('pfDesc').value.trim()
+        description: document.getElementById('pfDesc').value.trim(),
+        stock: Math.max(0, Number(document.getElementById('pfStock').value) || 0),
+        cost: Math.max(0, Number(document.getElementById('pfCost').value) || 0)
     };
     if (window._prodImgData !== undefined) data.image = window._prodImgData;
     if (id) api.updateProduct(id, data); else api.addProduct(data);
@@ -255,25 +272,26 @@ function renderCategories() {
     wrap.innerHTML = `
         <div class="page-head" style="margin-bottom:18px">
             <div class="sub" style="font-size:13px">إجمالي ${cats.length} قسم — اضغط على القسم لعرض منتجاته</div>
-            <button class="btn btn-primary" onclick="openCategoryForm()"><i class="bi bi-plus-lg"></i> قسم جديد</button>
+            <button class="btn btn-primary" data-perm="categories" onclick="guard('categories', () => openCategoryForm())"><i class="bi bi-plus-lg"></i> قسم جديد</button>
         </div>
         <div class="grid grid-3" id="catGrid">
             ${cats.map(c => {
                 const count = getProducts().filter(p => p.categoryId === c.id).length;
                 return `<div class="cat-card" onclick="goToCatProducts('${c.id}')">
                     <div class="cc-actions" style="position:absolute;top:8px;left:8px">
-                        <button class="icon-btn" style="width:28px;height:28px;font-size:12px" onclick="event.stopPropagation();openCategoryForm('${c.id}')" title="تعديل"><i class="bi bi-pencil"></i></button>
-                        <button class="icon-btn" style="width:28px;height:28px;font-size:12px;background:#fee2e2;color:#b91c1c;border-color:#fecaca" onclick="event.stopPropagation();delCategory('${c.id}')" title="حذف"><i class="bi bi-trash"></i></button>
+                        <button class="icon-btn" style="width:28px;height:28px;font-size:12px" data-perm="categories" onclick="event.stopPropagation();guard('categories', () => openCategoryForm('${c.id}'))" title="تعديل"><i class="bi bi-pencil"></i></button>
+                        <button class="icon-btn" style="width:28px;height:28px;font-size:12px;background:#fee2e2;color:#b91c1c;border-color:#fecaca" data-perm="categories" onclick="event.stopPropagation();guard('categories', () => delCategory('${c.id}'))" title="حذف"><i class="bi bi-trash"></i></button>
                     </div>
                     <div class="cc-icon" style="background:${c.color}">${c.icon}</div>
                     <h4>${c.name}</h4>
                     <div class="cc-count">${count} منتج</div>
                 </div>`;
             }).join('')}
-            <div class="cat-card" style="border-style:dashed;display:flex;align-items:center;justify-content:center;min-height:140px" onclick="openCategoryForm()">
+            <div class="cat-card" data-perm="categories" style="border-style:dashed;display:flex;align-items:center;justify-content:center;min-height:140px" onclick="guard('categories', () => openCategoryForm())">
                 <div style="text-align:center;color:var(--muted)"><i class="bi bi-plus-circle" style="font-size:30px"></i><div style="font-weight:700;margin-top:6px">إضافة قسم</div></div>
             </div>
         </div>`;
+    applyPermissions();
 }
 function goToCatProducts(catId) { navigate('products'); _prodCatFilter = catId; setTimeout(renderProductsPage, 50); }
 function openCategoryForm(id) {

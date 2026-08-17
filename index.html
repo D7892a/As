@@ -13,18 +13,43 @@
 
 <!-- ===== شاشة الدخول ===== -->
 <div class="login-screen" id="loginScreen">
-    <div class="login-card">
+    <div class="login-card login-card-wide">
         <div class="login-logo">🍽️</div>
         <h1 class="brand-name">مطعم بغداد الذهبي</h1>
         <p class="tag brand-slogan">نظام الكاشير وإدارة المطاعم</p>
-        <div class="field" style="margin-top:24px">
-            <label style="color:rgba(255,255,255,.8);font-size:13px;font-weight:700;margin-bottom:6px;display:block">اسم الكاشير</label>
-            <input class="input" id="loginCashier" placeholder="أدخل اسمك..." value="">
+
+        <div class="login-split">
+            <!-- قائمة المستخدمين -->
+            <div class="login-users-col">
+                <div class="login-col-title"><i class="bi bi-people-fill"></i> اختر المستخدم</div>
+                <div class="login-users" id="loginUsers"></div>
+            </div>
+
+            <!-- لوحة الرمز السري -->
+            <div class="pin-panel" id="pinPanel" style="display:none">
+                <div class="login-col-title"><i class="bi bi-shield-lock"></i> الرمز السري لـ <span class="pin-user"></span></div>
+                <div class="pin-dots" id="pinDots"></div>
+                <div class="pin-pad">
+                    <button onclick="pinPress('1')">1</button>
+                    <button onclick="pinPress('2')">2</button>
+                    <button onclick="pinPress('3')">3</button>
+                    <button onclick="pinPress('4')">4</button>
+                    <button onclick="pinPress('5')">5</button>
+                    <button onclick="pinPress('6')">6</button>
+                    <button onclick="pinPress('7')">7</button>
+                    <button onclick="pinPress('8')">8</button>
+                    <button onclick="pinPress('9')">9</button>
+                    <button class="pin-fn" onclick="pinClear()"><i class="bi bi-eraser"></i></button>
+                    <button onclick="pinPress('0')">0</button>
+                    <button class="pin-fn" onclick="pinBack()"><i class="bi bi-backspace"></i></button>
+                </div>
+                <button class="btn btn-gold btn-lg btn-block" onclick="doLogin()">
+                    <i class="bi bi-box-arrow-in-right"></i> دخول النظام
+                </button>
+            </div>
         </div>
-        <button class="btn btn-gold btn-lg btn-block" style="margin-top:8px" onclick="doLogin()">
-            <i class="bi bi-box-arrow-in-right"></i> دخول النظام
-        </button>
-        <p class="login-hint">نظام يعمل بالكامل على جهازك — بياناتك محفوظة محلياً</p>
+        <p class="login-hint">نظام يعمل بالكامل على جهازك — بياناتك محفوظة محلياً 🔒<br>
+            الرمز الافتراضي: المدير <strong>1234</strong> • الكاشير <strong>1111</strong></p>
     </div>
 </div>
 
@@ -41,32 +66,68 @@
             </div>
         </div>
         <nav class="nav-scroll">
-            <div class="nav-group-label">العمليات</div>
-            <div class="nav-item active" data-page="pos" onclick="navigate('pos')">
-                <i class="bi bi-shop-window"></i> نقطة البيع
+            <div class="nav-group">
+                <div class="nav-group-label">العمليات</div>
+                <div class="nav-item active" data-page="pos" data-perm="pos" onclick="navigate('pos')">
+                    <i class="bi bi-shop-window"></i> نقطة البيع
+                </div>
+                <div class="nav-item" data-page="orders" data-perm="orders.view" onclick="navigate('orders')">
+                    <i class="bi bi-receipt"></i> الطلبات <span class="nav-badge">0</span>
+                </div>
+                <div class="nav-item" data-page="tables" data-perm="tables" onclick="navigate('tables')">
+                    <i class="bi bi-grid-3x3-gap"></i> الطاولات
+                </div>
+                <div class="nav-item" data-page="kitchen" data-perm="kitchen" onclick="navigate('kitchen')">
+                    <i class="bi bi-fire"></i> شاشة المطبخ
+                </div>
             </div>
-            <div class="nav-item" data-page="orders" onclick="navigate('orders')">
-                <i class="bi bi-receipt"></i> الطلبات <span class="nav-badge">0</span>
+
+            <div class="nav-group">
+                <div class="nav-group-label">القائمة والعروض</div>
+                <div class="nav-item" data-page="products" data-perm="products" onclick="navigate('products')">
+                    <i class="bi bi-grid"></i> الوجبات
+                </div>
+                <div class="nav-item" data-page="categories" data-perm="categories" onclick="navigate('categories')">
+                    <i class="bi bi-tags"></i> الأقسام
+                </div>
+                <div class="nav-item" data-page="offers" data-perm="offers" onclick="navigate('offers')">
+                    <i class="bi bi-stars"></i> العروض <span class="nav-badge gold" id="offersBadge">0</span>
+                </div>
+                <div class="nav-item" data-page="inventory" data-perm="inventory" onclick="navigate('inventory')">
+                    <i class="bi bi-box-seam"></i> المخزون
+                </div>
             </div>
-            <div class="nav-group-label">الإدارة</div>
-            <div class="nav-item" data-page="products" onclick="navigate('products')">
-                <i class="bi bi-grid"></i> المنتجات
+
+            <div class="nav-group">
+                <div class="nav-group-label">المال والتحليل</div>
+                <div class="nav-item" data-page="sales" data-perm="sales" onclick="navigate('sales')">
+                    <i class="bi bi-graph-up-arrow"></i> المبيعات
+                </div>
+                <div class="nav-item" data-page="expenses" data-perm="expenses" onclick="navigate('expenses')">
+                    <i class="bi bi-wallet2"></i> المصروفات
+                </div>
+                <div class="nav-item" data-page="shifts" data-perm="shifts" onclick="navigate('shifts')">
+                    <i class="bi bi-safe"></i> الورديات
+                </div>
+                <div class="nav-item" data-page="reports" data-perm="reports" onclick="navigate('reports')">
+                    <i class="bi bi-bar-chart-line"></i> التقارير
+                </div>
             </div>
-            <div class="nav-item" data-page="categories" onclick="navigate('categories')">
-                <i class="bi bi-tags"></i> الأقسام
-            </div>
-            <div class="nav-item" data-page="sales" onclick="navigate('sales')">
-                <i class="bi bi-graph-up-arrow"></i> المبيعات
-            </div>
-            <div class="nav-item" data-page="customers" onclick="navigate('customers')">
-                <i class="bi bi-people"></i> العملاء
-            </div>
-            <div class="nav-group-label">التحليل</div>
-            <div class="nav-item" data-page="reports" onclick="navigate('reports')">
-                <i class="bi bi-bar-chart-line"></i> التقارير
-            </div>
-            <div class="nav-item" data-page="settings" onclick="navigate('settings')">
-                <i class="bi bi-gear"></i> الإعدادات
+
+            <div class="nav-group">
+                <div class="nav-group-label">العملاء والنظام</div>
+                <div class="nav-item" data-page="customers" data-perm="customers" onclick="navigate('customers')">
+                    <i class="bi bi-people"></i> العملاء
+                </div>
+                <div class="nav-item" data-page="users" data-perm="users" onclick="navigate('users')">
+                    <i class="bi bi-person-badge"></i> المستخدمون والصلاحيات
+                </div>
+                <div class="nav-item" data-page="admin" data-perm="admin" onclick="navigate('admin')">
+                    <i class="bi bi-shield-lock"></i> أدوات المدير
+                </div>
+                <div class="nav-item" data-page="settings" data-perm="settings" onclick="navigate('settings')">
+                    <i class="bi bi-gear"></i> الإعدادات
+                </div>
             </div>
         </nav>
         <div class="sidebar-footer">
@@ -78,7 +139,7 @@
                 </div>
             </div>
             <button class="btn btn-light btn-block btn-sm" onclick="logout()">
-                <i class="bi bi-box-arrow-right"></i> تبديل الكاشير
+                <i class="bi bi-box-arrow-right"></i> تسجيل الخروج
             </button>
         </div>
     </aside>
@@ -91,14 +152,21 @@
                 <h2 id="pageTitle">نقطة البيع</h2>
                 <p id="pageSub">إنشاء طلب جديد وإتمام الدفع</p>
             </div>
+            <span class="badge badge-dark" id="roleChip"><i class="bi bi-person-badge"></i> —</span>
             <div class="topbar-clock" id="clock">
                 <span class="time">--:--:--</span>
                 <span class="date">—</span>
             </div>
-            <button class="icon-btn" onclick="navigate('reports')" title="التقارير">
+            <button class="icon-btn" data-perm="shifts" onclick="navigate('shifts')" title="الورديات">
+                <i class="bi bi-safe"></i>
+            </button>
+            <button class="icon-btn" data-perm="reports" onclick="navigate('reports')" title="التقارير">
                 <i class="bi bi-bar-chart-line"></i>
             </button>
-            <button class="icon-btn" onclick="navigate('settings')" title="الإعدادات">
+            <button class="icon-btn" data-perm="admin" onclick="navigate('admin')" title="أدوات المدير">
+                <i class="bi bi-shield-lock"></i>
+            </button>
+            <button class="icon-btn" data-perm="settings" onclick="navigate('settings')" title="الإعدادات">
                 <i class="bi bi-gear"></i>
             </button>
         </header>
@@ -124,6 +192,7 @@
                             <h3><i class="bi bi-bag-check"></i> الطلب الحالي <span class="order-num">#1001</span></h3>
                         </div>
                         <div class="cart-type-row"></div>
+                        <div class="cart-table"></div>
                         <div class="cart-customer"></div>
                         <div class="cart-items"></div>
                         <div class="cart-totals"></div>
@@ -137,7 +206,17 @@
                 <div id="ordersContainer"></div>
             </section>
 
-            <!-- ===== المنتجات ===== -->
+            <!-- ===== الطاولات ===== -->
+            <section id="page-tables" class="page">
+                <div id="tablesContainer"></div>
+            </section>
+
+            <!-- ===== شاشة المطبخ ===== -->
+            <section id="page-kitchen" class="page">
+                <div id="kitchenContainer"></div>
+            </section>
+
+            <!-- ===== الوجبات ===== -->
             <section id="page-products" class="page">
                 <div id="productsContainer"></div>
             </section>
@@ -147,9 +226,29 @@
                 <div id="categoriesContainer"></div>
             </section>
 
+            <!-- ===== العروض ===== -->
+            <section id="page-offers" class="page">
+                <div id="offersContainer"></div>
+            </section>
+
+            <!-- ===== المخزون ===== -->
+            <section id="page-inventory" class="page">
+                <div id="inventoryContainer"></div>
+            </section>
+
             <!-- ===== المبيعات ===== -->
             <section id="page-sales" class="page">
                 <div id="salesContainer"></div>
+            </section>
+
+            <!-- ===== المصروفات ===== -->
+            <section id="page-expenses" class="page">
+                <div id="expensesContainer"></div>
+            </section>
+
+            <!-- ===== الورديات ===== -->
+            <section id="page-shifts" class="page">
+                <div id="shiftsContainer"></div>
             </section>
 
             <!-- ===== العملاء ===== -->
@@ -160,6 +259,16 @@
             <!-- ===== التقارير ===== -->
             <section id="page-reports" class="page">
                 <div id="reportsContainer"></div>
+            </section>
+
+            <!-- ===== المستخدمون ===== -->
+            <section id="page-users" class="page">
+                <div id="usersContainer"></div>
+            </section>
+
+            <!-- ===== أدوات المدير ===== -->
+            <section id="page-admin" class="page">
+                <div id="adminContainer"></div>
             </section>
 
             <!-- ===== الإعدادات ===== -->
@@ -190,34 +299,25 @@
 
 <!-- ===== السكربتات ===== -->
 <script src="js/db.js"></script>
+<script src="js/auth.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/pos.js"></script>
 <script src="js/sections.js"></script>
+<script src="js/offers.js"></script>
+<script src="js/tables.js"></script>
+<script src="js/kitchen.js"></script>
+<script src="js/finance.js"></script>
+<script src="js/inventory.js"></script>
+<script src="js/users.js"></script>
+<script src="js/admin.js"></script>
 <script src="js/reports.js"></script>
 <script src="js/settings.js"></script>
 <script>
-    function doLogin() {
-        const name = document.getElementById('loginCashier').value.trim();
-        const s = getSettings();
-        if (name) { s.cashierName = name; persist(); }
-        document.getElementById('loginScreen').style.display = 'none';
-        document.getElementById('appShell').style.display = 'flex';
-        refreshBranding();
-        renderPOS();
-        // ترحيب
-        setTimeout(() => toast(`مرحباً ${s.cashierName} 👋`, 'success'), 300);
-    }
-    function logout() {
-        document.getElementById('appShell').style.display = 'none';
-        document.getElementById('loginScreen').style.display = 'flex';
-        document.getElementById('loginCashier').value = '';
-        document.getElementById('loginCashier').focus();
-    }
-    // دخول سريع بالضغط على Enter
-    document.getElementById('loginCashier').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
-    // إذا سبق الدخول (إعادة تحميل)
+    /* تهيئة الدخول */
     window.addEventListener('load', () => {
-        document.getElementById('loginCashier').focus();
+        restoreSession();
+        const badge = document.getElementById('offersBadge');
+        if (badge) badge.textContent = getOffers().filter(isOfferLive).length;
     });
 </script>
 </body>

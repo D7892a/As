@@ -5,6 +5,7 @@
 let cart = [];
 let cartCustomerId = 'cu1';
 let cartOrderType = 'dine';   // dine | take | delivery
+let cartTableId = null;
 let activeCat = 'all';
 let posSearch = '';
 
@@ -25,6 +26,10 @@ function renderCategoryChips() {
     const wrap = document.getElementById('posCats');
     if (!wrap) return;
     let html = `<div class="cat-chip ${activeCat === 'all' ? 'active' : ''}" onclick="setCat('all')"><i class="bi bi-grid-fill"></i> الكل</div>`;
+    const liveOffers = getOffers().filter(isOfferLive).length;
+    if (getSettings().enableOffers && liveOffers) {
+        html += `<div class="cat-chip offer-chip ${activeCat === 'offers' ? 'active' : ''}" onclick="setCat('offers')"><span>🔥</span> العروض <span class="chip-count">${liveOffers}</span></div>`;
+    }
     getCategories().forEach(c => {
         html += `<div class="cat-chip ${activeCat === c.id ? 'active' : ''}" onclick="setCat('${c.id}')"><span>${c.icon}</span> ${c.name}</div>`;
     });
@@ -38,6 +43,31 @@ function onPosSearch(v) { posSearch = v.trim().toLowerCase(); renderProductGrid(
 function renderProductGrid() {
     const grid = document.getElementById('posGrid');
     if (!grid) return;
+
+    /* --- شبكة العروض --- */
+    if (activeCat === 'offers') {
+        const offers = getOffers().filter(isOfferLive)
+            .filter(o => !posSearch || o.name.toLowerCase().includes(posSearch));
+        grid.innerHTML = offers.length ? offers.map(o => {
+            const saving = offerSaving(o);
+            const original = offerOriginalPrice(o);
+            const visual = o.image ? `<img src="${o.image}" alt="${o.name}">` : (o.emoji || '🎁');
+            return `
+            <div class="product-card offer-pc" onclick="addOfferToCart('${o.id}')">
+                <div class="pc-img offer-img">${visual}</div>
+                ${o.badge ? `<span class="pc-badge" style="background:var(--gold);color:var(--dark)">${o.badge}</span>` : ''}
+                <div class="pc-body">
+                    <div class="pc-name">${o.name}</div>
+                    <div class="pc-cat">${(o.items || []).reduce((n, i) => n + i.qty, 0)} أصناف${saving ? ` • وفّر ${moneyNum(saving)}` : ''}</div>
+                    <div class="pc-price">${moneyNum(o.price)}
+                        ${saving ? `<small style="text-decoration:line-through;color:var(--muted);font-size:11px">${moneyNum(original)}</small>` : ''}
+                    </div>
+                </div>
+            </div>`;
+        }).join('') : `<div class="empty-state" style="grid-column:1/-1"><i class="bi bi-stars"></i><p>لا توجد عروض سارية حالياً</p></div>`;
+        return;
+    }
+
     let list = getProducts();
     if (activeCat !== 'all') list = list.filter(p => p.categoryId === activeCat);
     if (posSearch) list = list.filter(p => p.name.toLowerCase().includes(posSearch) || (getCategory(p.categoryId)?.name || '').toLowerCase().includes(posSearch));
@@ -46,13 +76,20 @@ function renderProductGrid() {
         grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><i class="bi bi-search"></i><p>لا توجد منتجات مطابقة</p></div>`;
         return;
     }
+    const s = getSettings();
     grid.innerHTML = list.map(p => {
         const cat = getCategory(p.categoryId);
         const visual = p.image ? `<img src="${p.image}" alt="${p.name}">` : (p.emoji || '🍽️');
+        const stock = Number(p.stock || 0);
+        const out = s.trackStock && s.blockOutOfStock && stock <= 0;
+        const clickable = p.available && !out;
+        const low = s.trackStock && stock > 0 && stock <= (s.lowStockQty || 5);
         return `
-        <div class="product-card ${p.available ? '' : 'unavailable'}" onclick="${p.available ? `addToCart('${p.id}')` : ''}">
+        <div class="product-card ${clickable ? '' : 'unavailable'}" onclick="${clickable ? `addToCart('${p.id}')` : ''}">
             <div class="pc-img">${visual}</div>
-            ${!p.available ? `<span class="pc-badge" style="background:#dc2626;color:#fff">غير متوفر</span>` : ''}
+            ${!p.available ? `<span class="pc-badge" style="background:#dc2626;color:#fff">غير متوفر</span>`
+                : out ? `<span class="pc-badge" style="background:#dc2626;color:#fff">نفد المخزون</span>`
+                : low ? `<span class="pc-badge" style="background:#fef3c7;color:#a16207">باقي ${stock}</span>` : ''}
             <div class="pc-body">
                 <div class="pc-name">${p.name}</div>
                 <div class="pc-cat">${cat ? cat.name : ''}</div>
@@ -60,6 +97,21 @@ function renderProductGrid() {
             </div>
         </div>`;
     }).join('');
+}
+
+/* ----- إضافة عرض إلى السلة ----- */
+function addOfferToCart(offerId) {
+    const o = getOffer(offerId);
+    if (!o) return;
+    if (!isOfferLive(o)) { toast('هذا العرض غير ساري حالياً', 'warning'); return; }
+    const line = cart.find(i => i.productId === o.id);
+    if (line) line.qty += 1;
+    else cart.push({
+        productId: o.id, offerId: o.id, isOffer: true,
+        name: `🔥 ${o.name}`, price: Number(o.price) || 0, qty: 1
+    });
+    renderCart();
+    toast(`أُضيف العرض: ${o.name}`, 'success', 1800);
 }
 
 /* ----- السلة ----- */
@@ -87,8 +139,9 @@ function clearCart() {
     if (confirmAction('هل تريد إفراغ السلة؟')) { cart = []; renderCart(); }
 }
 
-function setOrderType(t) { cartOrderType = t; renderCart(); }
+function setOrderType(t) { cartOrderType = t; if (t !== 'dine') cartTableId = null; renderCart(); }
 function setCartCustomer(id) { cartCustomerId = id; renderCart(); }
+function setCartTable(id) { cartTableId = id || null; renderCart(); }
 
 function cartTotals() {
     const s = getSettings();
@@ -119,16 +172,34 @@ function renderCart() {
         </div>
         <button class="btn btn-light btn-sm" onclick="openCustomerPicker()"><i class="bi bi-three-dots"></i></button>`;
 
+    // اختيار الطاولة (للصالة فقط)
+    const tableRow = panel.querySelector('.cart-table');
+    if (tableRow) {
+        if (cartOrderType === 'dine' && getSettings().enableTables) {
+            const free = getTables().filter(t => t.status === 'free' || t.id === cartTableId);
+            tableRow.style.display = 'flex';
+            tableRow.innerHTML = `
+                <i class="bi bi-grid-3x3-gap-fill" style="color:var(--muted);font-size:18px"></i>
+                <div style="flex:1;min-width:0">
+                    <div style="font-size:11px;color:var(--muted);font-weight:600">الطاولة</div>
+                    <select class="input input-sm" onchange="setCartTable(this.value)" style="padding:4px 8px;font-size:13px;font-weight:700">
+                        <option value="">بدون طاولة</option>
+                        ${free.map(t => `<option value="${t.id}" ${cartTableId === t.id ? 'selected' : ''}>${t.name} — ${t.zone} (${t.seats} كراسي)</option>`).join('')}
+                    </select>
+                </div>`;
+        } else { tableRow.style.display = 'none'; tableRow.innerHTML = ''; }
+    }
+
     // العناصر
     const itemsEl = panel.querySelector('.cart-items');
     if (!cart.length) {
         itemsEl.innerHTML = `<div class="cart-empty"><i class="bi bi-cart3"></i><p>السلة فارغة<br>اضغط على منتج لإضافته</p></div>`;
     } else {
         itemsEl.innerHTML = cart.map(i => `
-            <div class="cart-line">
+            <div class="cart-line ${i.isOffer ? 'is-offer' : ''}">
                 <div class="cl-info">
                     <div class="cl-name">${i.name}</div>
-                    <div class="cl-price">${moneyNum(i.price)} × ${i.qty}</div>
+                    <div class="cl-price" ${can('pos.price') ? `onclick="editLinePrice('${i.productId}')" style="cursor:pointer;text-decoration:underline dotted"` : ''}>${moneyNum(i.price)} × ${i.qty}</div>
                 </div>
                 <div class="qty-stepper">
                     <button onclick="changeQty('${i.productId}',-1)">−</button>
@@ -153,15 +224,28 @@ function renderCart() {
     // الأزرار
     panel.querySelector('.cart-actions').innerHTML = `
         ${cart.length ? `<button class="btn btn-ghost btn-sm" onclick="clearCart()"><i class="bi bi-trash"></i></button>` : ''}
-        ${cart.length ? `<button class="btn btn-dark" onclick="applyDiscount()" style="flex:1"><i class="bi bi-tag"></i> خصم</button>` : ''}
+        ${cart.length && can('pos.discount') ? `<button class="btn btn-dark" onclick="applyDiscount()" style="flex:1"><i class="bi bi-tag"></i> خصم</button>` : ''}
         <button class="btn btn-success btn-lg" style="flex:2" ${cart.length ? '' : 'disabled'} onclick="openPayment()"><i class="bi bi-cash-coin"></i> الدفع</button>`;
 
     // رقم الطلب التالي
     panel.querySelector('.order-num').textContent = '#' + (DB.orderCounter + 1);
 }
 
+/* ----- تعديل سعر صنف داخل السلة (بصلاحية) ----- */
+function editLinePrice(productId) {
+    if (!can('pos.price')) { denied(); return; }
+    const line = cart.find(i => i.productId === productId);
+    if (!line) return;
+    const v = prompt(`السعر الجديد لـ ${line.name}:`, line.price);
+    if (v === null) return;
+    line.price = Math.max(0, Number(v) || 0);
+    renderCart();
+    toast('تم تعديل السعر', 'info');
+}
+
 /* ----- خصم سريع ----- */
 function applyDiscount() {
+    if (!can('pos.discount')) { denied(); return; }
     const t = cartTotals();
     const input = prompt('أدخل مبلغ الخصم (بالدينار):', '0');
     if (input === null) return;
@@ -294,6 +378,8 @@ function completePayment() {
         change: Math.max(0, paid - t.total),
         orderType: cartOrderType,
         orderTypeLabel: ORDER_TYPES[cartOrderType].label,
+        tableId: cartOrderType === 'dine' ? cartTableId : null,
+        tableName: cartOrderType === 'dine' && cartTableId ? (getTable(cartTableId)?.name || '') : '',
         customerId: cartCustomerId,
         customerName: cust.name,
         customerPhone: cust.phone,
@@ -306,9 +392,11 @@ function completePayment() {
     // إعادة ضبط
     cart = [];
     cartCustomerId = 'cu1';
+    cartTableId = null;
     window._cartDiscount = 0;
     closeModal('dynModal');
     renderCart();
+    renderProductGrid();
     updateOrderBadge();
 
     toast(`تم إنشاء الطلب #${saved.number} بنجاح 🎉`, 'success');

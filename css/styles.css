@@ -713,3 +713,206 @@ table.tbl tbody tr:last-child td { border-bottom: none; }
     display: none;
 }
 .backdrop.show { display: block; }
+
+/* ============================================
+   ✨ الإضافات الجديدة — صلاحيات، عروض، طاولات،
+   مطبخ، مخزون، مصروفات، ورديات، أدوات المدير
+   ============================================ */
+
+/* ===== شاشة الدخول متعددة المستخدمين ===== */
+.login-card-wide { max-width: 720px; }
+.login-split { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; text-align: right; }
+.login-col-title { font-size: 13px; font-weight: 800; color: var(--gold); margin-bottom: 10px; }
+.login-users { display: flex; flex-direction: column; gap: 9px; max-height: 320px; overflow-y: auto; padding-left: 4px; }
+.login-user {
+    display: flex; align-items: center; gap: 11px; cursor: pointer;
+    background: rgba(255,255,255,.07); border: 1.5px solid rgba(255,255,255,.10);
+    border-radius: 14px; padding: 10px 12px; transition: .18s;
+}
+.login-user:hover { background: rgba(255,255,255,.13); border-color: var(--gold); }
+.login-user.active { background: rgba(212,175,55,.18); border-color: var(--gold); box-shadow: 0 0 0 3px rgba(212,175,55,.15); }
+.lu-avatar {
+    width: 42px; height: 42px; border-radius: 12px; background: rgba(255,255,255,.12);
+    display: flex; align-items: center; justify-content: center; font-size: 22px; flex: 0 0 42px;
+}
+.lu-info { flex: 1; min-width: 0; }
+.lu-name { color: #fff; font-weight: 800; font-size: 14px; margin-bottom: 3px; }
+.lu-arrow { color: rgba(255,255,255,.4); }
+
+.pin-panel { background: rgba(0,0,0,.22); border-radius: 16px; padding: 16px; }
+.pin-panel.shake { animation: shake .45s; }
+@keyframes shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-8px)} 40%{transform:translateX(8px)} 60%{transform:translateX(-5px)} 80%{transform:translateX(5px)} }
+.pin-user { color: #fff; }
+.pin-dots { display: flex; gap: 9px; justify-content: center; margin: 6px 0 14px; min-height: 16px; }
+.pin-dot { width: 13px; height: 13px; border-radius: 50%; background: rgba(255,255,255,.18); border: 1.5px solid rgba(255,255,255,.25); }
+.pin-dot.filled { background: var(--gold); border-color: var(--gold); box-shadow: 0 0 10px rgba(212,175,55,.55); }
+.pin-pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
+.pin-pad button {
+    background: rgba(255,255,255,.09); border: 1.5px solid rgba(255,255,255,.12); color: #fff;
+    font-size: 19px; font-weight: 800; border-radius: 12px; padding: 12px 0; transition: .15s;
+}
+.pin-pad button:hover { background: rgba(255,255,255,.18); border-color: var(--gold); }
+.pin-pad button:active { transform: scale(.95); }
+.pin-pad .pin-fn { color: var(--gold); font-size: 16px; }
+@media (max-width: 620px) { .login-split { grid-template-columns: 1fr; } }
+
+/* ===== مجموعات القائمة الجانبية ===== */
+.nav-group { margin-bottom: 4px; }
+.nav-badge.gold { background: var(--gold); color: var(--dark); }
+
+/* ===== شريحة العروض في POS ===== */
+.cat-chip.offer-chip { background: linear-gradient(135deg, #fff7e0, #ffe9b8); border-color: var(--gold); color: #8a6d1b; font-weight: 800; }
+.cat-chip.offer-chip.active { background: linear-gradient(135deg, var(--gold), var(--gold-dark)); color: var(--dark); }
+.chip-count { background: rgba(0,0,0,.15); border-radius: 20px; padding: 1px 7px; font-size: 11px; margin-right: 4px; }
+.product-card.offer-pc { border-color: var(--gold); box-shadow: 0 4px 14px rgba(212,175,55,.22); }
+.pc-img.offer-img { background: linear-gradient(135deg, #fff3d1, #ffe1a8); }
+.cart-line.is-offer { background: linear-gradient(90deg, rgba(212,175,55,.12), transparent); border-right: 3px solid var(--gold); }
+.cart-table { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--border); }
+.cart-table select { width: 100%; }
+
+/* ===== بطاقات العروض ===== */
+.offers-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
+.offer-card {
+    background: #fff; border: 1.5px solid var(--border); border-radius: var(--radius);
+    padding: 16px; box-shadow: var(--shadow-sm); position: relative; transition: .2s;
+}
+.offer-card:hover { transform: translateY(-3px); box-shadow: var(--shadow); border-color: var(--gold); }
+.offer-card.dim { opacity: .62; }
+.oc-head { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 10px; }
+.oc-visual {
+    width: 58px; height: 58px; border-radius: 14px; flex: 0 0 58px; overflow: hidden;
+    background: linear-gradient(135deg, #fff3d1, #ffe1a8);
+    display: flex; align-items: center; justify-content: center; font-size: 28px;
+}
+.oc-visual img { width: 100%; height: 100%; object-fit: cover; }
+.oc-title { font-size: 16px; font-weight: 900; }
+.oc-desc { font-size: 12px; color: var(--muted); margin-top: 3px; line-height: 1.6; }
+.oc-discount {
+    background: var(--primary); color: #fff; font-weight: 900; font-size: 14px;
+    border-radius: 10px; padding: 6px 9px; box-shadow: 0 4px 10px rgba(193,39,45,.3);
+}
+.oc-badge {
+    position: absolute; top: -9px; left: 14px; background: linear-gradient(135deg, var(--gold), var(--gold-dark));
+    color: var(--dark); font-size: 11px; font-weight: 900; padding: 4px 11px; border-radius: 20px; box-shadow: var(--shadow-sm);
+}
+.oc-items { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.oi-chip { background: var(--cream); border: 1px solid var(--border); border-radius: 20px; padding: 3px 10px; font-size: 11.5px; font-weight: 600; }
+.oc-prices { display: flex; align-items: flex-end; justify-content: space-between; padding: 10px 0; border-top: 1px dashed var(--border); }
+.oc-price { font-size: 22px; font-weight: 900; color: var(--primary-dark); }
+.oc-price small { font-size: 12px; color: var(--muted); }
+.oc-old { font-size: 12.5px; color: var(--muted); text-decoration: line-through; }
+.oc-saving { font-size: 12px; font-weight: 800; color: var(--success); background: #dcfce7; padding: 4px 10px; border-radius: 20px; }
+.oc-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.oc-actions { display: flex; gap: 6px; }
+.offer-summary { background: var(--cream); border: 1px solid var(--border); border-radius: 12px; padding: 10px 14px; margin-top: 8px; }
+
+/* ===== الطاولات ===== */
+.tables-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px; }
+.table-card {
+    background: #fff; border: 2px solid var(--border); border-radius: var(--radius);
+    padding: 15px; cursor: pointer; transition: .2s; position: relative; overflow: hidden;
+}
+.table-card:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
+.table-card::before { content: ''; position: absolute; inset: 0 auto 0 0; width: 5px; background: var(--muted); }
+.table-card.free::before { background: var(--success); }
+.table-card.busy::before { background: var(--primary); }
+.table-card.reserved::before { background: var(--gold); }
+.table-card.cleaning::before { background: var(--info); }
+.table-card.free { background: linear-gradient(135deg, #f0fdf4, #fff); border-color: #bbf7d0; }
+.table-card.busy { background: linear-gradient(135deg, #fef2f2, #fff); border-color: #fecaca; }
+.table-card.reserved { background: linear-gradient(135deg, #fefce8, #fff); border-color: #fde68a; }
+.tc-top { display: flex; justify-content: space-between; align-items: center; font-size: 11.5px; font-weight: 800; color: var(--muted); margin-bottom: 8px; }
+.tc-name { font-size: 19px; font-weight: 900; }
+.tc-zone { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+.tc-order { background: rgba(0,0,0,.04); border-radius: 10px; padding: 8px 10px; font-size: 11.5px; font-weight: 700; display: flex; flex-direction: column; gap: 3px; }
+.tc-empty { font-size: 11.5px; color: var(--muted); font-style: italic; }
+
+/* ===== شاشة المطبخ ===== */
+.kds-board { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; align-items: start; }
+@media (max-width: 900px) { .kds-board { grid-template-columns: 1fr; } }
+.kds-col { background: var(--cream-2); border-radius: var(--radius); padding: 12px; min-height: 220px; }
+.kds-col-head { font-size: 14px; font-weight: 900; margin-bottom: 12px; display: flex; align-items: center; gap: 7px; }
+.kds-count { background: var(--dark); color: #fff; border-radius: 20px; font-size: 11px; padding: 2px 9px; margin-right: auto; }
+.kds-pending .kds-col-head { color: var(--warning); }
+.kds-preparing .kds-col-head { color: var(--primary); }
+.kds-done .kds-col-head { color: var(--success); }
+.kds-col-body { display: flex; flex-direction: column; gap: 10px; }
+.kds-empty { text-align: center; font-size: 12.5px; color: var(--muted); padding: 20px 0; }
+.kds-card { background: #fff; border-radius: 13px; padding: 12px; box-shadow: var(--shadow-sm); border-right: 4px solid var(--info); }
+.kds-card.warn { border-right-color: var(--warning); }
+.kds-card.late { border-right-color: var(--danger); animation: pulseLate 1.6s infinite; }
+@keyframes pulseLate { 0%,100% { box-shadow: 0 0 0 0 rgba(220,38,38,.25) } 50% { box-shadow: 0 0 0 7px rgba(220,38,38,0) } }
+.kc-head { display: flex; align-items: center; gap: 7px; font-size: 13px; margin-bottom: 8px; }
+.kc-time { margin-right: auto; font-size: 11.5px; color: var(--muted); font-weight: 700; }
+.kc-items { list-style: none; font-size: 13px; font-weight: 600; display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
+.kc-qty { display: inline-block; min-width: 26px; font-weight: 900; color: var(--primary); }
+.kc-note { background: #fef3c7; color: #a16207; font-size: 11.5px; border-radius: 8px; padding: 6px 9px; margin-bottom: 8px; }
+.kds-legend { font-size: 12px; color: var(--muted); font-weight: 700; }
+
+/* ===== المصروفات ===== */
+.cat-bars { margin-bottom: 16px; }
+.cb-row { display: flex; align-items: center; gap: 12px; margin-bottom: 9px; }
+.cb-label { font-size: 12.5px; font-weight: 700; width: 130px; flex: 0 0 130px; }
+.cb-track { flex: 1; height: 10px; background: var(--cream-2); border-radius: 20px; overflow: hidden; }
+.cb-fill { height: 100%; background: linear-gradient(90deg, var(--primary), var(--gold)); border-radius: 20px; }
+.cb-val { font-size: 12.5px; font-weight: 800; width: 100px; text-align: left; }
+
+/* ===== الورديات ===== */
+.shift-open { border: 2px solid var(--success); background: linear-gradient(135deg, #f0fdf4, #fff); }
+.shift-pulse { width: 14px; height: 14px; border-radius: 50%; background: var(--success); box-shadow: 0 0 0 0 rgba(22,163,74,.5); animation: pulseDot 1.8s infinite; }
+@keyframes pulseDot { 0% { box-shadow: 0 0 0 0 rgba(22,163,74,.5) } 70% { box-shadow: 0 0 0 12px rgba(22,163,74,0) } 100% { box-shadow: 0 0 0 0 rgba(22,163,74,0) } }
+.mini-stat { flex: 1; min-width: 110px; background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 9px 12px; }
+.mini-stat span { display: block; font-size: 11.5px; color: var(--muted); font-weight: 700; }
+.mini-stat strong { font-size: 15px; font-weight: 900; }
+
+/* ===== المستخدمون والصلاحيات ===== */
+.users-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px; }
+.user-card { background: #fff; border: 1.5px solid var(--border); border-radius: var(--radius); padding: 18px 14px; text-align: center; box-shadow: var(--shadow-sm); transition: .2s; }
+.user-card:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
+.user-card.off { opacity: .55; }
+.uc-avatar { width: 62px; height: 62px; border-radius: 18px; margin: 0 auto 10px; background: var(--cream-2); display: flex; align-items: center; justify-content: center; font-size: 30px; }
+.uc-name { font-size: 15.5px; font-weight: 900; margin-bottom: 6px; }
+.uc-job { font-size: 12px; color: var(--muted); margin: 7px 0; }
+.uc-perm-bar { height: 7px; background: var(--cream-2); border-radius: 20px; overflow: hidden; margin-bottom: 5px; }
+.uc-perm-bar div { height: 100%; background: linear-gradient(90deg, var(--success), var(--gold)); }
+.uc-perm-txt { font-size: 11px; color: var(--muted); font-weight: 700; margin-bottom: 10px; }
+.uc-meta { display: flex; flex-direction: column; gap: 3px; font-size: 11px; color: var(--muted); margin-bottom: 12px; }
+.uc-actions { display: flex; gap: 5px; justify-content: center; }
+.perm-group { border: 1px solid var(--border); border-radius: 13px; padding: 6px 12px; margin-bottom: 12px; }
+.pg-title { font-size: 13px; font-weight: 900; color: var(--primary-dark); padding: 8px 0 2px; }
+.perm-row { padding: 8px 0; }
+.role-hint { background: #dbeafe; color: #1d4ed8; font-size: 12.5px; font-weight: 700; border-radius: 11px; padding: 10px 13px; margin-top: 10px; line-height: 1.7; }
+.avatar-pill { padding: 4px 10px; }
+
+/* ===== أدوات المدير ===== */
+.admin-hero {
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+    background: linear-gradient(135deg, var(--dark), var(--dark-2)); color: #fff;
+    border-radius: var(--radius); padding: 20px 22px; margin-bottom: 18px; box-shadow: var(--shadow);
+}
+.admin-hero .spacer { flex: 1; }
+.ah-icon { width: 54px; height: 54px; border-radius: 16px; background: rgba(220,38,38,.22); color: #fca5a5; display: flex; align-items: center; justify-content: center; font-size: 26px; }
+.admin-hero h2 { font-size: 19px; font-weight: 900; }
+.admin-hero p { font-size: 12.5px; color: rgba(255,255,255,.65); margin-top: 4px; max-width: 520px; line-height: 1.7; }
+.danger-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(238px, 1fr)); gap: 14px; }
+.danger-card { background: #fff; border: 1.5px solid var(--border); border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow-sm); transition: .2s; }
+.danger-card:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
+.danger-card .dc-top { width: 44px; height: 44px; border-radius: 13px; display: flex; align-items: center; justify-content: center; font-size: 21px; margin-bottom: 11px; }
+.danger-card.danger { border-color: #fecaca; } .danger-card.danger .dc-top { background: #fee2e2; color: #b91c1c; }
+.danger-card.warn { border-color: #fde68a; } .danger-card.warn .dc-top { background: #fef3c7; color: #a16207; }
+.danger-card.info { border-color: #bfdbfe; } .danger-card.info .dc-top { background: #dbeafe; color: #1d4ed8; }
+.dc-title { font-size: 14.5px; font-weight: 900; margin-bottom: 5px; }
+.dc-desc { font-size: 12px; color: var(--muted); margin-bottom: 12px; line-height: 1.6; min-height: 34px; }
+.danger-confirm { text-align: center; padding: 8px 0 4px; }
+.dc-icon { font-size: 44px; color: var(--danger); margin-bottom: 10px; }
+.dc-msg { font-size: 14px; line-height: 1.9; margin-bottom: 16px; }
+.activity-list { display: flex; flex-direction: column; max-height: 380px; overflow-y: auto; }
+.act-row { display: flex; align-items: center; gap: 10px; padding: 9px 4px; border-bottom: 1px dashed var(--border); font-size: 12.5px; }
+.act-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--info); flex: 0 0 8px; }
+.act-danger .act-dot { background: var(--danger); }
+.act-order .act-dot { background: var(--success); }
+.act-login .act-dot, .act-logout .act-dot { background: var(--gold); }
+.act-text { flex: 1; font-weight: 700; }
+.act-user { color: var(--muted); font-size: 11.5px; }
+.act-time { color: var(--muted); font-size: 11px; min-width: 120px; text-align: left; }
+.input-sm { padding: 6px 10px; }
