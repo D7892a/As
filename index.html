@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام الكاشير العراقي — إدارة المطاعم</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<!-- ===== شاشة الدخول ===== -->
+<div class="login-screen" id="loginScreen">
+    <div class="login-card">
+        <div class="login-logo">🍽️</div>
+        <h1 class="brand-name">مطعم بغداد الذهبي</h1>
+        <p class="tag brand-slogan">نظام الكاشير وإدارة المطاعم</p>
+        <div class="field" style="margin-top:24px">
+            <label style="color:rgba(255,255,255,.8);font-size:13px;font-weight:700;margin-bottom:6px;display:block">اسم الكاشير</label>
+            <input class="input" id="loginCashier" placeholder="أدخل اسمك..." value="">
+        </div>
+        <button class="btn btn-gold btn-lg btn-block" style="margin-top:8px" onclick="doLogin()">
+            <i class="bi bi-box-arrow-in-right"></i> دخول النظام
+        </button>
+        <p class="login-hint">نظام يعمل بالكامل على جهازك — بياناتك محفوظة محلياً</p>
+    </div>
+</div>
+
+<!-- ===== التطبيق ===== -->
+<div class="app-shell" id="appShell" style="display:none">
+
+    <!-- الشريط الجانبي -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-brand">
+            <div class="brand-logo">🍽️</div>
+            <div class="brand-text">
+                <h1 class="brand-name">مطعم بغداد</h1>
+                <span class="brand-slogan">نظام الكاشير</span>
+            </div>
+        </div>
+        <nav class="nav-scroll">
+            <div class="nav-group-label">العمليات</div>
+            <div class="nav-item active" data-page="pos" onclick="navigate('pos')">
+                <i class="bi bi-shop-window"></i> نقطة البيع
+            </div>
+            <div class="nav-item" data-page="orders" onclick="navigate('orders')">
+                <i class="bi bi-receipt"></i> الطلبات <span class="nav-badge">0</span>
+            </div>
+            <div class="nav-group-label">الإدارة</div>
+            <div class="nav-item" data-page="products" onclick="navigate('products')">
+                <i class="bi bi-grid"></i> المنتجات
+            </div>
+            <div class="nav-item" data-page="categories" onclick="navigate('categories')">
+                <i class="bi bi-tags"></i> الأقسام
+            </div>
+            <div class="nav-item" data-page="sales" onclick="navigate('sales')">
+                <i class="bi bi-graph-up-arrow"></i> المبيعات
+            </div>
+            <div class="nav-item" data-page="customers" onclick="navigate('customers')">
+                <i class="bi bi-people"></i> العملاء
+            </div>
+            <div class="nav-group-label">التحليل</div>
+            <div class="nav-item" data-page="reports" onclick="navigate('reports')">
+                <i class="bi bi-bar-chart-line"></i> التقارير
+            </div>
+            <div class="nav-item" data-page="settings" onclick="navigate('settings')">
+                <i class="bi bi-gear"></i> الإعدادات
+            </div>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="cashier-card">
+                <div class="cashier-avatar">أ</div>
+                <div class="cashier-info">
+                    <div class="name cashier-name">الكاشير</div>
+                    <div class="role cashier-role">المسمى</div>
+                </div>
+            </div>
+            <button class="btn btn-light btn-block btn-sm" onclick="logout()">
+                <i class="bi bi-box-arrow-right"></i> تبديل الكاشير
+            </button>
+        </div>
+    </aside>
+
+    <!-- المحتوى -->
+    <div class="main">
+        <header class="topbar">
+            <button class="icon-btn menu-toggle"><i class="bi bi-list"></i></button>
+            <div class="topbar-title">
+                <h2 id="pageTitle">نقطة البيع</h2>
+                <p id="pageSub">إنشاء طلب جديد وإتمام الدفع</p>
+            </div>
+            <div class="topbar-clock" id="clock">
+                <span class="time">--:--:--</span>
+                <span class="date">—</span>
+            </div>
+            <button class="icon-btn" onclick="navigate('reports')" title="التقارير">
+                <i class="bi bi-bar-chart-line"></i>
+            </button>
+            <button class="icon-btn" onclick="navigate('settings')" title="الإعدادات">
+                <i class="bi bi-gear"></i>
+            </button>
+        </header>
+
+        <main class="content">
+
+            <!-- ===== نقطة البيع ===== -->
+            <section id="page-pos" class="page active">
+                <div class="pos-layout">
+                    <div class="pos-left">
+                        <div class="card card-pad" style="margin-bottom:0">
+                            <div class="search-box" style="max-width:none;margin-bottom:12px">
+                                <i class="bi bi-search"></i>
+                                <input class="input" placeholder="ابحث عن منتج بالاسم..." oninput="onPosSearch(this.value)">
+                            </div>
+                            <div class="cat-chips" id="posCats"></div>
+                        </div>
+                        <div class="products-grid" id="posGrid"></div>
+                    </div>
+
+                    <div class="cart-panel" id="cartPanel">
+                        <div class="cart-head">
+                            <h3><i class="bi bi-bag-check"></i> الطلب الحالي <span class="order-num">#1001</span></h3>
+                        </div>
+                        <div class="cart-type-row"></div>
+                        <div class="cart-customer"></div>
+                        <div class="cart-items"></div>
+                        <div class="cart-totals"></div>
+                        <div class="cart-actions"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===== الطلبات ===== -->
+            <section id="page-orders" class="page">
+                <div id="ordersContainer"></div>
+            </section>
+
+            <!-- ===== المنتجات ===== -->
+            <section id="page-products" class="page">
+                <div id="productsContainer"></div>
+            </section>
+
+            <!-- ===== الأقسام ===== -->
+            <section id="page-categories" class="page">
+                <div id="categoriesContainer"></div>
+            </section>
+
+            <!-- ===== المبيعات ===== -->
+            <section id="page-sales" class="page">
+                <div id="salesContainer"></div>
+            </section>
+
+            <!-- ===== العملاء ===== -->
+            <section id="page-customers" class="page">
+                <div id="customersContainer"></div>
+            </section>
+
+            <!-- ===== التقارير ===== -->
+            <section id="page-reports" class="page">
+                <div id="reportsContainer"></div>
+            </section>
+
+            <!-- ===== الإعدادات ===== -->
+            <section id="page-settings" class="page">
+                <div id="settingsContainer"></div>
+            </section>
+
+        </main>
+    </div>
+</div>
+
+<div class="backdrop"></div>
+
+<!-- ===== نافذة ديناميكية ===== -->
+<div class="modal-overlay" id="dynModal">
+    <div class="modal">
+        <div class="modal-head">
+            <h3>عنوان</h3>
+            <button class="modal-close" onclick="closeModal('dynModal')"><i class="bi bi-x-lg"></i></button>
+        </div>
+        <div class="modal-body max-h"></div>
+        <div class="modal-foot"></div>
+    </div>
+</div>
+
+<!-- ===== مكان الطباعة ===== -->
+<div class="print-area"></div>
+
+<!-- ===== السكربتات ===== -->
+<script src="js/db.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/pos.js"></script>
+<script src="js/sections.js"></script>
+<script src="js/reports.js"></script>
+<script src="js/settings.js"></script>
+<script>
+    function doLogin() {
+        const name = document.getElementById('loginCashier').value.trim();
+        const s = getSettings();
+        if (name) { s.cashierName = name; persist(); }
+        document.getElementById('loginScreen').style.display = 'none';
+        document.getElementById('appShell').style.display = 'flex';
+        refreshBranding();
+        renderPOS();
+        // ترحيب
+        setTimeout(() => toast(`مرحباً ${s.cashierName} 👋`, 'success'), 300);
+    }
+    function logout() {
+        document.getElementById('appShell').style.display = 'none';
+        document.getElementById('loginScreen').style.display = 'flex';
+        document.getElementById('loginCashier').value = '';
+        document.getElementById('loginCashier').focus();
+    }
+    // دخول سريع بالضغط على Enter
+    document.getElementById('loginCashier').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+    // إذا سبق الدخول (إعادة تحميل)
+    window.addEventListener('load', () => {
+        document.getElementById('loginCashier').focus();
+    });
+</script>
+</body>
+</html>
