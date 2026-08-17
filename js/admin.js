@@ -27,6 +27,12 @@ function renderAdmin() {
         { id: 'points', icon: 'bi-award', color: 'warn', title: 'تصفير نقاط الولاء', desc: 'إرجاع نقاط جميع العملاء إلى صفر', btn: 'تصفير النقاط', fn: 'dangerResetPoints()' },
         { id: 'expenses', icon: 'bi-wallet2', color: 'warn', title: 'تصفير المصروفات', desc: `${getExpenses().length} قيد مصروف`, btn: 'حذف المصروفات', fn: 'dangerResetExpenses()' },
         { id: 'shifts', icon: 'bi-safe', color: 'warn', title: 'تصفير الورديات', desc: `${getShifts().length} وردية`, btn: 'حذف الورديات', fn: 'dangerResetShifts()' },
+        { id: 'deliveries', icon: 'bi-truck', color: 'warn', title: 'تصفير سجل التوصيل', desc: `${getDeliveries().length} طلب توصيل`, btn: 'حذف السجل', fn: 'dangerResetDeliveries()' },
+        { id: 'reservations', icon: 'bi-calendar-check', color: 'warn', title: 'تصفير الحجوزات', desc: `${getReservations().length} حجز`, btn: 'حذف الحجوزات', fn: 'dangerResetReservations()' },
+        { id: 'purchases', icon: 'bi-receipt-cutoff', color: 'danger', title: 'تصفير المشتريات والذمم', desc: `${getPurchases().length} فاتورة شراء`, btn: 'حذف المشتريات', fn: 'dangerResetPurchases()' },
+        { id: 'payroll', icon: 'bi-cash-stack', color: 'danger', title: 'تصفير كشوف الرواتب', desc: `${getPayroll().length} قيد راتب`, btn: 'حذف الرواتب', fn: 'dangerResetPayroll()' },
+        { id: 'wastes', icon: 'bi-trash3', color: 'warn', title: 'تصفير سجل الهدر', desc: `${getWastes().length} قيد هدر`, btn: 'حذف السجل', fn: 'dangerResetWastes()' },
+        { id: 'feedback', icon: 'bi-chat-heart', color: 'warn', title: 'تصفير التقييمات', desc: `${getFeedback().length} تقييم`, btn: 'حذف التقييمات', fn: 'dangerResetFeedback()' },
         { id: 'all', icon: 'bi-exclamation-octagon-fill', color: 'danger', title: 'إعادة ضبط المصنع', desc: 'حذف كل شيء والعودة لحالة النظام الأولى', btn: 'إعادة ضبط كاملة', fn: 'dangerFactoryReset()' }
     ];
 
@@ -40,6 +46,30 @@ function renderAdmin() {
             <div class="spacer"></div>
             <button class="btn btn-light" onclick="backupData()"><i class="bi bi-download"></i> نسخة احتياطية قبل التصفير</button>
         </div>
+
+        ${(() => {
+            const u = storageUsage(); const ab = getAutoBackupInfo();
+            return `<div class="card card-pad" style="margin-bottom:18px">
+                <div class="ss-title"><i class="bi bi-hdd"></i> حالة التخزين والنسخ التلقائية</div>
+                <div class="kpi-row" style="margin-bottom:12px">
+                    <i class="bi bi-hdd-stack"></i>
+                    <div style="flex:1">
+                        <div class="kpi-top"><span>مساحة البيانات المستخدمة</span><strong>${u.mb} ميغابايت (${u.pct}%)</strong></div>
+                        <div class="kpi-bar"><div style="width:${Math.max(3, u.pct)}%"></div></div>
+                    </div>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:13px">
+                    <i class="bi bi-clock-history" style="color:var(--primary)"></i>
+                    <span>${ab ? `آخر نسخة تلقائية: <strong>${fmtDateTime(ab.at)}</strong> (${ab.size} ك.ب)` : 'لم تُحفظ نسخة تلقائية بعد — تُحفظ كل دقيقتين'}</span>
+                    <div class="spacer"></div>
+                    <button class="btn btn-light btn-sm" onclick="autoBackup();renderAdmin();toast('تم حفظ نسخة تلقائية','success')"><i class="bi bi-save"></i> حفظ نسخة الآن</button>
+                    ${ab ? `<button class="btn btn-gold btn-sm" onclick="restoreAutoBackup()"><i class="bi bi-arrow-counterclockwise"></i> استرجاع آخر نسخة</button>` : ''}
+                    <button class="btn btn-light btn-sm" onclick="exportOrdersCSV()"><i class="bi bi-filetype-csv"></i> تصدير الطلبات CSV</button>
+                    <button class="btn btn-light btn-sm" onclick="exportProductsCSV()"><i class="bi bi-filetype-csv"></i> تصدير الوجبات CSV</button>
+                    <button class="btn btn-light btn-sm" onclick="exportCustomersCSV()"><i class="bi bi-filetype-csv"></i> تصدير العملاء CSV</button>
+                </div>
+            </div>`;
+        })()}
 
         <div class="stats-grid">
             <div class="stat"><i class="bi bi-receipt stat-icon"></i><div class="stat-label">الطلبات</div><div class="stat-value">${getOrders().length}</div></div>
@@ -134,6 +164,24 @@ function dangerResetExpenses() {
 }
 function dangerResetShifts() {
     _danger('تصفير الورديات', 'سيتم حذف سجل جميع الورديات المفتوحة والمغلقة.', () => api.resetShifts());
+}
+function dangerResetDeliveries() {
+    _danger('تصفير سجل التوصيل', 'سيتم حذف جميع طلبات التوصيل المسجّلة (السائقون والمناطق تبقى).', () => api.resetDeliveries());
+}
+function dangerResetReservations() {
+    _danger('تصفير الحجوزات', 'سيتم حذف جميع الحجوزات وتحرير الطاولات المحجوزة.', () => api.resetReservations());
+}
+function dangerResetPurchases() {
+    _danger('تصفير المشتريات', 'سيتم حذف جميع فواتير الشراء وتصفير أرصدة الموردين.', () => api.resetPurchases());
+}
+function dangerResetPayroll() {
+    _danger('تصفير كشوف الرواتب', 'سيتم حذف جميع قيود الرواتب (المصروفات المسجّلة تبقى).', () => api.resetPayroll());
+}
+function dangerResetWastes() {
+    _danger('تصفير سجل الهدر', 'سيتم حذف جميع قيود الهدر والتالف (المخزون لا يُعاد).', () => api.resetWastes());
+}
+function dangerResetFeedback() {
+    _danger('تصفير التقييمات', 'سيتم حذف جميع تقييمات وآراء الزبائن.', () => api.resetFeedback());
 }
 function dangerFactoryReset() {
     _danger('إعادة ضبط المصنع', '⚠️ سيتم مسح <strong>كل البيانات</strong> (طلبات، وجبات، عملاء، مستخدمين، إعدادات) والعودة للحالة الأولى.', () => {

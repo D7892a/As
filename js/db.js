@@ -35,7 +35,23 @@ function seedData() {
             blockOutOfStock: false,  // منع بيع المنتج عند نفاد الكمية
             enableTables: true,      // تفعيل قسم الطاولات
             enableOffers: true,      // تفعيل قسم العروض
-            enableShifts: true       // تفعيل الورديات
+            enableShifts: true,      // تفعيل الورديات
+            /* ----- إعدادات الأقسام الجديدة ----- */
+            enableDelivery: true,    // تفعيل قسم الدليفري والسائقين
+            enableReservations: true,// تفعيل الحجوزات
+            enableSuppliers: true,   // تفعيل الموردين والمشتريات
+            enablePayroll: true,     // تفعيل رواتب الموظفين
+            enableWaste: true,       // تفعيل سجل الهدر
+            enableFeedback: true,    // تفعيل تقييمات العملاء
+            defaultDeliveryFee: 3000,// أجرة توصيل افتراضية
+            driverCommission: 2000,  // عمولة السائق لكل طلب
+            tierBronze: 0,           // حدود مستويات الولاء (بالإنفاق)
+            tierSilver: 150000,
+            tierGold: 400000,
+            tierVip: 1000000,
+            tierDiscountSilver: 3,   // خصم تلقائي لكل مستوى %
+            tierDiscountGold: 5,
+            tierDiscountVip: 10
         },
         users: [
             { id: 'u_admin', name: 'مدير النظام', role: 'admin', pin: '1234', avatar: '👑', jobTitle: 'المدير العام', active: true, perms: {}, createdAt: Date.now() },
@@ -96,6 +112,30 @@ function seedData() {
         expenses: [],
         shifts: [],
         activity: [],
+
+        /* ============ البيانات الجديدة ============ */
+        drivers: [
+            { id: 'dr1', name: 'حسين الدليفري', phone: '0770 900 1122', vehicle: 'دراجة نارية', plate: 'بغداد 12345', commission: 2000, active: true, createdAt: Date.now() },
+            { id: 'dr2', name: 'كرار التوصيل', phone: '0781 400 5566', vehicle: 'سيارة', plate: 'بغداد 67890', commission: 3000, active: true, createdAt: Date.now() }
+        ],
+        zones: [
+            { id: 'z1', name: 'الكرادة', fee: 3000, minutes: 20 },
+            { id: 'z2', name: 'الجادرية', fee: 4000, minutes: 25 },
+            { id: 'z3', name: 'المنصور', fee: 5000, minutes: 35 },
+            { id: 'z4', name: 'الأعظمية', fee: 6000, minutes: 45 }
+        ],
+        deliveries: [],
+        reservations: [],
+        suppliers: [
+            { id: 'sp1', name: 'شركة اللحوم الذهبية', phone: '0770 222 3333', contact: 'أبو علي', category: 'لحوم', balance: 0, note: '', active: true, createdAt: Date.now() },
+            { id: 'sp2', name: 'مخازن الخضار المركزية', phone: '0781 444 5555', contact: 'أبو زينب', category: 'خضار', balance: 0, note: '', active: true, createdAt: Date.now() },
+            { id: 'sp3', name: 'موزع المشروبات', phone: '0790 666 7777', contact: 'حيدر', category: 'مشروبات', balance: 0, note: '', active: true, createdAt: Date.now() }
+        ],
+        purchases: [],
+        payroll: [],
+        recipes: {},
+        wastes: [],
+        feedback: [],
         orderCounter: 1000,
         meta: { createdAt: Date.now() }
     };
@@ -165,9 +205,12 @@ function migrateDB(db) {
         if (db.settings[k] === undefined) db.settings[k] = fresh.settings[k];
     });
     // مجموعات جديدة
-    ['users', 'offers', 'tables', 'expenses', 'shifts', 'activity'].forEach(k => {
+    ['users', 'offers', 'tables', 'expenses', 'shifts', 'activity',
+     'drivers', 'zones', 'deliveries', 'reservations', 'suppliers',
+     'purchases', 'payroll', 'wastes', 'feedback'].forEach(k => {
         if (!Array.isArray(db[k])) db[k] = fresh[k] ? JSON.parse(JSON.stringify(fresh[k])) : [];
     });
+    if (!db.recipes || typeof db.recipes !== 'object' || Array.isArray(db.recipes)) db.recipes = {};
     if (!db.users.length) db.users = fresh.users;
     // ضمان وجود مدير واحد على الأقل
     if (!db.users.some(u => u.role === 'admin')) db.users.unshift(fresh.users[0]);
@@ -241,6 +284,45 @@ const getTable = (id) => DB.tables.find(t => t.id === id);
 const getExpenses = () => DB.expenses;
 const getShifts = () => DB.shifts;
 const getOpenShift = () => DB.shifts.find(s => s.status === 'open');
+
+/* ----- وصول الأقسام الجديدة ----- */
+const getDrivers = () => DB.drivers || (DB.drivers = []);
+const getDriver = (id) => getDrivers().find(d => d.id === id);
+const getZones = () => DB.zones || (DB.zones = []);
+const getZone = (id) => getZones().find(z => z.id === id);
+const getDeliveries = () => DB.deliveries || (DB.deliveries = []);
+const getDelivery = (id) => getDeliveries().find(d => d.id === id);
+const getReservations = () => DB.reservations || (DB.reservations = []);
+const getReservation = (id) => getReservations().find(r => r.id === id);
+const getSuppliers = () => DB.suppliers || (DB.suppliers = []);
+const getSupplier = (id) => getSuppliers().find(s => s.id === id);
+const getPurchases = () => DB.purchases || (DB.purchases = []);
+const getPurchase = (id) => getPurchases().find(p => p.id === id);
+const getPayroll = () => DB.payroll || (DB.payroll = []);
+const getWastes = () => DB.wastes || (DB.wastes = []);
+const getFeedback = () => DB.feedback || (DB.feedback = []);
+const getRecipes = () => DB.recipes || (DB.recipes = {});
+const getRecipe = (productId) => getRecipes()[productId] || null;
+
+/* ----- مستويات الولاء ----- */
+const LOYALTY_TIERS = [
+    { key: 'vip', label: 'VIP ماسي', icon: '💎', color: '#7c3aed', minKey: 'tierVip', discKey: 'tierDiscountVip' },
+    { key: 'gold', label: 'ذهبي', icon: '🥇', color: '#d4af37', minKey: 'tierGold', discKey: 'tierDiscountGold' },
+    { key: 'silver', label: 'فضي', icon: '🥈', color: '#94a3b8', minKey: 'tierSilver', discKey: 'tierDiscountSilver' },
+    { key: 'bronze', label: 'برونزي', icon: '🥉', color: '#b45309', minKey: 'tierBronze', discKey: null }
+];
+/* إجمالي إنفاق العميل */
+function customerSpent(customerId) {
+    return DB.orders.filter(o => o.customerId === customerId && o.status !== 'cancelled')
+        .reduce((s, o) => s + Number(o.total || 0), 0);
+}
+/* مستوى العميل حسب الإنفاق */
+function customerTier(customerId) {
+    const s = getSettings();
+    const spent = customerSpent(customerId);
+    const t = LOYALTY_TIERS.find(t => spent >= Number(s[t.minKey] || 0)) || LOYALTY_TIERS[LOYALTY_TIERS.length - 1];
+    return { ...t, spent, discount: t.discKey ? Number(s[t.discKey] || 0) : 0 };
+}
 /* السعر الأصلي للعرض قبل التخفيض */
 const offerOriginalPrice = (offer) => (offer.items || []).reduce((s, it) => {
     const p = getProduct(it.productId);
@@ -423,6 +505,192 @@ const api = {
         persist(); return s;
     },
 
+    /* ============ الدليفري والسائقون ============ */
+    addDriver(data) {
+        const d = { id: uid('dr'), name: '', phone: '', vehicle: 'دراجة نارية', plate: '', commission: getSettings().driverCommission || 0, active: true, createdAt: Date.now(), ...data };
+        DB.drivers.push(d); logActivity('delivery', `إضافة سائق: ${d.name}`); persist(); return d;
+    },
+    updateDriver(id, data) { const d = getDriver(id); if (!d) return; Object.assign(d, data); persist(); },
+    deleteDriver(id) {
+        if (getDeliveries().some(x => x.driverId === id && x.status !== 'delivered' && x.status !== 'cancelled')) {
+            toast('لا يمكن حذف سائق لديه طلبات جارية', 'error'); return false;
+        }
+        DB.drivers = DB.drivers.filter(d => d.id !== id); persist(); return true;
+    },
+    addZone(data) { const z = { id: uid('z'), name: '', fee: 0, minutes: 30, ...data }; DB.zones.push(z); persist(); return z; },
+    updateZone(id, data) { const z = getZone(id); if (!z) return; Object.assign(z, data); persist(); },
+    deleteZone(id) { DB.zones = DB.zones.filter(z => z.id !== id); persist(); },
+
+    addDelivery(data) {
+        const d = {
+            id: uid('dl'), orderId: null, orderNumber: null, driverId: null, zoneId: null,
+            address: '', phone: '', customerName: '', fee: 0, total: 0,
+            status: 'pending', // pending | assigned | onway | delivered | cancelled
+            createdAt: Date.now(), assignedAt: null, pickedAt: null, deliveredAt: null, note: '', ...data
+        };
+        DB.deliveries.unshift(d); logActivity('delivery', `طلب توصيل جديد #${d.orderNumber || '-'}`); persist(); return d;
+    },
+    updateDelivery(id, data) { const d = getDelivery(id); if (!d) return; Object.assign(d, data); persist(); },
+    setDeliveryStatus(id, status) {
+        const d = getDelivery(id); if (!d) return;
+        d.status = status;
+        if (status === 'assigned') d.assignedAt = Date.now();
+        if (status === 'onway') d.pickedAt = Date.now();
+        if (status === 'delivered') {
+            d.deliveredAt = Date.now();
+            const o = d.orderId ? getOrder(d.orderId) : null;
+            if (o && o.status !== 'completed') o.status = 'completed';
+        }
+        logActivity('delivery', `تحديث توصيل #${d.orderNumber || '-'} إلى ${status}`);
+        persist();
+    },
+    assignDriver(deliveryId, driverId) {
+        const d = getDelivery(deliveryId); if (!d) return;
+        d.driverId = driverId; d.status = 'assigned'; d.assignedAt = Date.now();
+        const dr = getDriver(driverId);
+        logActivity('delivery', `إسناد الطلب #${d.orderNumber || '-'} إلى ${dr ? dr.name : '-'}`);
+        persist();
+    },
+    deleteDelivery(id) { DB.deliveries = DB.deliveries.filter(d => d.id !== id); persist(); },
+
+    /* ============ الحجوزات ============ */
+    addReservation(data) {
+        const r = {
+            id: uid('rs'), customerName: '', phone: '', guests: 2, tableId: null,
+            date: new Date().toISOString().slice(0, 10), time: '20:00', note: '',
+            status: 'booked', // booked | seated | done | noshow | cancelled
+            deposit: 0, createdAt: Date.now(), ...data
+        };
+        DB.reservations.unshift(r); logActivity('reservation', `حجز جديد: ${r.customerName} (${r.guests} أشخاص)`); persist(); return r;
+    },
+    updateReservation(id, data) { const r = getReservation(id); if (!r) return; Object.assign(r, data); persist(); },
+    setReservationStatus(id, status) {
+        const r = getReservation(id); if (!r) return;
+        r.status = status;
+        const t = r.tableId ? getTable(r.tableId) : null;
+        if (t) {
+            if (status === 'booked') t.status = 'reserved';
+            else if (status === 'seated') { t.status = 'busy'; t.openedAt = Date.now(); }
+            else if (['done', 'cancelled', 'noshow'].includes(status) && !t.orderId) { t.status = 'free'; t.openedAt = null; }
+        }
+        logActivity('reservation', `حجز ${r.customerName}: ${status}`);
+        persist();
+    },
+    deleteReservation(id) {
+        const r = getReservation(id);
+        if (r && r.tableId) { const t = getTable(r.tableId); if (t && t.status === 'reserved' && !t.orderId) t.status = 'free'; }
+        DB.reservations = DB.reservations.filter(x => x.id !== id); persist();
+    },
+
+    /* ============ الموردون والمشتريات ============ */
+    addSupplier(data) {
+        const s = { id: uid('sp'), name: '', phone: '', contact: '', category: 'عام', balance: 0, note: '', active: true, createdAt: Date.now(), ...data };
+        DB.suppliers.push(s); logActivity('supplier', `إضافة مورد: ${s.name}`); persist(); return s;
+    },
+    updateSupplier(id, data) { const s = getSupplier(id); if (!s) return; Object.assign(s, data); persist(); },
+    deleteSupplier(id) { DB.suppliers = DB.suppliers.filter(s => s.id !== id); persist(); },
+
+    addPurchase(data) {
+        const p = {
+            id: uid('pu'), supplierId: null, supplierName: '', invoiceNo: '',
+            items: [], total: 0, paid: 0, status: 'unpaid', // unpaid | partial | paid
+            note: '', addToStock: true, createdAt: Date.now(),
+            userName: (typeof currentUser === 'function' && currentUser()) ? currentUser().name : '-', ...data
+        };
+        p.total = p.items.reduce((s, i) => s + Number(i.qty || 0) * Number(i.cost || 0), 0) || Number(p.total) || 0;
+        p.status = p.paid >= p.total ? 'paid' : p.paid > 0 ? 'partial' : 'unpaid';
+        DB.purchases.unshift(p);
+        // إضافة الكميات إلى المخزون وتحديث التكلفة
+        if (p.addToStock) {
+            p.items.forEach(i => {
+                const prod = getProduct(i.productId);
+                if (prod) {
+                    prod.stock = Math.max(0, (Number(prod.stock) || 0) + Number(i.qty || 0));
+                    if (Number(i.cost) > 0) prod.cost = Number(i.cost);
+                }
+            });
+        }
+        // رصيد المورد (المتبقي عليه)
+        const sup = getSupplier(p.supplierId);
+        if (sup) sup.balance = (Number(sup.balance) || 0) + (p.total - p.paid);
+        logActivity('purchase', `فاتورة شراء ${p.invoiceNo || ''} بمبلغ ${moneyNum(p.total)}`);
+        persist(); return p;
+    },
+    payPurchase(id, amount) {
+        const p = getPurchase(id); if (!p) return;
+        const amt = Math.max(0, Math.min(Number(amount) || 0, p.total - p.paid));
+        p.paid += amt;
+        p.status = p.paid >= p.total ? 'paid' : p.paid > 0 ? 'partial' : 'unpaid';
+        const sup = getSupplier(p.supplierId);
+        if (sup) sup.balance = Math.max(0, (Number(sup.balance) || 0) - amt);
+        logActivity('purchase', `دفعة للمورد ${p.supplierName}: ${moneyNum(amt)}`);
+        persist();
+    },
+    deletePurchase(id) { DB.purchases = DB.purchases.filter(p => p.id !== id); persist(); },
+
+    /* ============ الرواتب ============ */
+    addPayroll(data) {
+        const p = {
+            id: uid('pr'), userId: null, userName: '', month: new Date().toISOString().slice(0, 7),
+            base: 0, bonus: 0, deduction: 0, advance: 0, net: 0, paid: false, paidAt: null, note: '',
+            createdAt: Date.now(), ...data
+        };
+        p.net = Number(p.base || 0) + Number(p.bonus || 0) - Number(p.deduction || 0) - Number(p.advance || 0);
+        DB.payroll.unshift(p); logActivity('payroll', `قيد راتب: ${p.userName} (${p.month})`); persist(); return p;
+    },
+    updatePayroll(id, data) {
+        const p = DB.payroll.find(x => x.id === id); if (!p) return;
+        Object.assign(p, data);
+        p.net = Number(p.base || 0) + Number(p.bonus || 0) - Number(p.deduction || 0) - Number(p.advance || 0);
+        persist();
+    },
+    payPayroll(id) {
+        const p = DB.payroll.find(x => x.id === id); if (!p) return;
+        p.paid = true; p.paidAt = Date.now();
+        // تسجيلها كمصروف تلقائياً
+        api.addExpense({ title: `راتب ${p.userName} — ${p.month}`, category: 'رواتب', amount: p.net, note: 'قيد آلي من كشف الرواتب' });
+        logActivity('payroll', `صرف راتب ${p.userName}: ${moneyNum(p.net)}`);
+        persist();
+    },
+    deletePayroll(id) { DB.payroll = DB.payroll.filter(p => p.id !== id); persist(); },
+
+    /* ============ الهدر والتالف ============ */
+    addWaste(data) {
+        const w = {
+            id: uid('ws'), productId: null, productName: '', qty: 1, reason: 'تالف',
+            cost: 0, note: '', createdAt: Date.now(),
+            userName: (typeof currentUser === 'function' && currentUser()) ? currentUser().name : '-', ...data
+        };
+        DB.wastes.unshift(w);
+        const p = getProduct(w.productId);
+        if (p) {
+            p.stock = Math.max(0, (Number(p.stock) || 0) - Number(w.qty || 0));
+            if (!w.cost) w.cost = Number(p.cost || 0) * Number(w.qty || 0);
+        }
+        logActivity('waste', `هدر: ${w.productName} ×${w.qty} (${w.reason})`);
+        persist(); return w;
+    },
+    deleteWaste(id) { DB.wastes = DB.wastes.filter(w => w.id !== id); persist(); },
+
+    /* ============ تقييمات العملاء ============ */
+    addFeedback(data) {
+        const f = {
+            id: uid('fb'), orderId: null, orderNumber: null, customerName: '',
+            rating: 5, food: 5, service: 5, speed: 5, comment: '', createdAt: Date.now(), ...data
+        };
+        DB.feedback.unshift(f); persist(); return f;
+    },
+    deleteFeedback(id) { DB.feedback = DB.feedback.filter(f => f.id !== id); persist(); },
+
+    /* ============ الوصفات (المكوّنات) ============ */
+    setRecipe(productId, items) {
+        if (!DB.recipes) DB.recipes = {};
+        DB.recipes[productId] = items || [];
+        logActivity('recipe', `تحديث وصفة: ${getProduct(productId)?.name || productId}`);
+        persist();
+    },
+    deleteRecipe(productId) { if (DB.recipes) delete DB.recipes[productId]; persist(); },
+
     /* ============ المخزون ============ */
     setStock(productId, qty, reason = 'تعديل يدوي') {
         const p = getProduct(productId); if (!p) return;
@@ -480,6 +748,16 @@ const api = {
     resetCounter(startAt = 1000) { DB.orderCounter = Number(startAt) || 1000; logActivity('danger', `ضبط عدّاد الطلبات على ${DB.orderCounter}`); persist(); },
     resetStock(qty = 0) { DB.products.forEach(p => p.stock = Number(qty) || 0); logActivity('danger', 'تصفير المخزون'); persist(); },
     resetActivity() { DB.activity = []; persist(); },
+    resetDeliveries() { DB.deliveries = []; logActivity('danger', 'تصفير سجل التوصيل'); persist(); },
+    resetReservations() {
+        DB.reservations = [];
+        DB.tables.forEach(t => { if (t.status === 'reserved') t.status = 'free'; });
+        logActivity('danger', 'تصفير الحجوزات'); persist();
+    },
+    resetPurchases() { DB.purchases = []; DB.suppliers.forEach(s => s.balance = 0); logActivity('danger', 'تصفير المشتريات'); persist(); },
+    resetPayroll() { DB.payroll = []; logActivity('danger', 'تصفير كشوف الرواتب'); persist(); },
+    resetWastes() { DB.wastes = []; logActivity('danger', 'تصفير سجل الهدر'); persist(); },
+    resetFeedback() { DB.feedback = []; logActivity('danger', 'تصفير التقييمات'); persist(); },
     // الإعدادات
     saveSettings(data) {
         Object.assign(DB.settings, data); persist();

@@ -8,6 +8,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
     <link rel="stylesheet" href="css/styles.css">
+    <meta name="theme-color" content="#c1272d">
+    <meta name="description" content="نظام كاشير وإدارة مطاعم متكامل يعمل بالكامل في المتصفح">
+    <link rel="manifest" href="manifest.json">
 </head>
 <body>
 
@@ -67,8 +70,15 @@
         </div>
         <nav class="nav-scroll">
             <div class="nav-group">
+                <div class="nav-group-label">لوحة القيادة</div>
+                <div class="nav-item active" data-page="dashboard" data-perm="dashboard" onclick="navigate('dashboard')">
+                    <i class="bi bi-speedometer2"></i> نظرة عامة
+                </div>
+            </div>
+
+            <div class="nav-group">
                 <div class="nav-group-label">العمليات</div>
-                <div class="nav-item active" data-page="pos" data-perm="pos" onclick="navigate('pos')">
+                <div class="nav-item" data-page="pos" data-perm="pos" onclick="navigate('pos')">
                     <i class="bi bi-shop-window"></i> نقطة البيع
                 </div>
                 <div class="nav-item" data-page="orders" data-perm="orders.view" onclick="navigate('orders')">
@@ -79,6 +89,12 @@
                 </div>
                 <div class="nav-item" data-page="kitchen" data-perm="kitchen" onclick="navigate('kitchen')">
                     <i class="bi bi-fire"></i> شاشة المطبخ
+                </div>
+                <div class="nav-item" data-page="delivery" data-perm="delivery" onclick="navigate('delivery')">
+                    <i class="bi bi-truck"></i> التوصيل <span class="nav-badge" id="deliveryBadge" style="display:none">0</span>
+                </div>
+                <div class="nav-item" data-page="reservations" data-perm="reservations" onclick="navigate('reservations')">
+                    <i class="bi bi-calendar-check"></i> الحجوزات <span class="nav-badge gold" id="resBadge" style="display:none">0</span>
                 </div>
             </div>
 
@@ -96,6 +112,9 @@
                 <div class="nav-item" data-page="inventory" data-perm="inventory" onclick="navigate('inventory')">
                     <i class="bi bi-box-seam"></i> المخزون
                 </div>
+                <div class="nav-item" data-page="suppliers" data-perm="suppliers" onclick="navigate('suppliers')">
+                    <i class="bi bi-truck-front"></i> الموردون والمشتريات
+                </div>
             </div>
 
             <div class="nav-group">
@@ -109,6 +128,9 @@
                 <div class="nav-item" data-page="shifts" data-perm="shifts" onclick="navigate('shifts')">
                     <i class="bi bi-safe"></i> الورديات
                 </div>
+                <div class="nav-item" data-page="payroll" data-perm="payroll" onclick="navigate('payroll')">
+                    <i class="bi bi-cash-stack"></i> الرواتب والهدر
+                </div>
                 <div class="nav-item" data-page="reports" data-perm="reports" onclick="navigate('reports')">
                     <i class="bi bi-bar-chart-line"></i> التقارير
                 </div>
@@ -118,6 +140,9 @@
                 <div class="nav-group-label">العملاء والنظام</div>
                 <div class="nav-item" data-page="customers" data-perm="customers" onclick="navigate('customers')">
                     <i class="bi bi-people"></i> العملاء
+                </div>
+                <div class="nav-item" data-page="qrmenu" data-perm="qrmenu" onclick="navigate('qrmenu')">
+                    <i class="bi bi-qr-code"></i> المنيو الرقمي والتقييمات
                 </div>
                 <div class="nav-item" data-page="users" data-perm="users" onclick="navigate('users')">
                     <i class="bi bi-person-badge"></i> المستخدمون والصلاحيات
@@ -157,6 +182,15 @@
                 <span class="time">--:--:--</span>
                 <span class="date">—</span>
             </div>
+            <button class="icon-btn topbar-search" onclick="openCommandPalette()" title="بحث شامل (Ctrl+K)">
+                <i class="bi bi-search"></i>
+            </button>
+            <button class="icon-btn" id="darkBtn" onclick="toggleDarkMode()" title="الوضع الليلي (Ctrl+D)">
+                <i class="bi bi-moon-stars"></i>
+            </button>
+            <button class="icon-btn" onclick="showShortcuts()" title="اختصارات لوحة المفاتيح (؟)">
+                <i class="bi bi-keyboard"></i>
+            </button>
             <button class="icon-btn" data-perm="shifts" onclick="navigate('shifts')" title="الورديات">
                 <i class="bi bi-safe"></i>
             </button>
@@ -173,8 +207,13 @@
 
         <main class="content">
 
+            <!-- ===== لوحة القيادة ===== -->
+            <section id="page-dashboard" class="page active">
+                <div id="dashboardContainer"></div>
+            </section>
+
             <!-- ===== نقطة البيع ===== -->
-            <section id="page-pos" class="page active">
+            <section id="page-pos" class="page">
                 <div class="pos-layout">
                     <div class="pos-left">
                         <div class="card card-pad" style="margin-bottom:0">
@@ -216,6 +255,16 @@
                 <div id="kitchenContainer"></div>
             </section>
 
+            <!-- ===== التوصيل ===== -->
+            <section id="page-delivery" class="page">
+                <div id="deliveryContainer"></div>
+            </section>
+
+            <!-- ===== الحجوزات ===== -->
+            <section id="page-reservations" class="page">
+                <div id="reservationsContainer"></div>
+            </section>
+
             <!-- ===== الوجبات ===== -->
             <section id="page-products" class="page">
                 <div id="productsContainer"></div>
@@ -234,6 +283,21 @@
             <!-- ===== المخزون ===== -->
             <section id="page-inventory" class="page">
                 <div id="inventoryContainer"></div>
+            </section>
+
+            <!-- ===== الموردون والمشتريات ===== -->
+            <section id="page-suppliers" class="page">
+                <div id="suppliersContainer"></div>
+            </section>
+
+            <!-- ===== الرواتب والهدر ===== -->
+            <section id="page-payroll" class="page">
+                <div id="payrollContainer"></div>
+            </section>
+
+            <!-- ===== المنيو الرقمي والتقييمات ===== -->
+            <section id="page-qrmenu" class="page">
+                <div id="qrmenuContainer"></div>
             </section>
 
             <!-- ===== المبيعات ===== -->
@@ -310,9 +374,23 @@
 <script src="js/inventory.js"></script>
 <script src="js/users.js"></script>
 <script src="js/admin.js"></script>
+<script src="js/delivery.js"></script>
+<script src="js/reservations.js"></script>
+<script src="js/suppliers.js"></script>
+<script src="js/payroll.js"></script>
+<script src="js/dashboard.js"></script>
+<script src="js/qrmenu.js"></script>
 <script src="js/reports.js"></script>
 <script src="js/settings.js"></script>
+<script src="js/power.js"></script>
 <script>
+    /* تسجيل Service Worker (يعمل بدون إنترنت) */
+    if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('sw.js').catch(() => {});
+        });
+    }
+
     /* تهيئة الدخول */
     window.addEventListener('load', () => {
         restoreSession();

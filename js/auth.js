@@ -24,7 +24,17 @@ const PERMS = [
     { group: 'المال', key: 'shifts', label: 'الورديات وتقفيل الصندوق', desc: 'فتح وإغلاق الوردية', icon: 'bi-safe' },
     { group: 'المال', key: 'reports', label: 'التقارير والتحليلات', desc: 'الرسوم البيانية وتقارير الأداء', icon: 'bi-bar-chart-line' },
 
+    { group: 'العمليات', key: 'delivery', label: 'إدارة التوصيل', desc: 'طلبات الدليفري والسائقون والمناطق', icon: 'bi-truck' },
+    { group: 'العمليات', key: 'reservations', label: 'الحجوزات', desc: 'حجز الطاولات مسبقاً وإدارة الضيوف', icon: 'bi-calendar-check' },
+
+    { group: 'القائمة', key: 'suppliers', label: 'الموردون والمشتريات', desc: 'فواتير الشراء وذمم الموردين', icon: 'bi-truck-front' },
+    { group: 'القائمة', key: 'waste', label: 'سجل الهدر والتالف', desc: 'تسجيل التالف وخصمه من المخزون', icon: 'bi-trash3' },
+
+    { group: 'المال', key: 'dashboard', label: 'لوحة القيادة', desc: 'المؤشرات اللحظية والتحليل السريع', icon: 'bi-speedometer2' },
+    { group: 'المال', key: 'payroll', label: 'رواتب الموظفين', desc: 'كشوف الرواتب والمكافآت والسلف', icon: 'bi-cash-stack' },
+
     { group: 'العملاء', key: 'customers', label: 'إدارة العملاء', desc: 'قاعدة العملاء ونقاط الولاء', icon: 'bi-people' },
+    { group: 'العملاء', key: 'qrmenu', label: 'المنيو الرقمي والتقييمات', desc: 'رمز QR للمنيو وآراء الزبائن', icon: 'bi-qr-code' },
 
     { group: 'النظام', key: 'users', label: 'إدارة المستخدمين', desc: 'إضافة كاشير ومنح الصلاحيات', icon: 'bi-person-badge' },
     { group: 'النظام', key: 'settings', label: 'الإعدادات العامة', desc: 'هوية المطعم والضرائب والإيصال', icon: 'bi-gear' },
@@ -39,19 +49,26 @@ const ROLE_DEFAULTS = {
     manager: {
         pos: true, 'pos.discount': true, 'pos.price': true, 'orders.view': true, 'orders.status': true,
         'orders.cancel': true, 'orders.delete': false, tables: true, kitchen: true,
+        delivery: true, reservations: true,
         products: true, categories: true, offers: true, inventory: true,
+        suppliers: true, waste: true,
         sales: true, expenses: true, shifts: true, reports: true, customers: true,
+        dashboard: true, payroll: false, qrmenu: true,
         users: false, settings: true, admin: false
     },
     cashier: {
         pos: true, 'pos.discount': false, 'pos.price': false, 'orders.view': true, 'orders.status': true,
         'orders.cancel': false, 'orders.delete': false, tables: true, kitchen: true,
+        delivery: true, reservations: true,
         products: false, categories: false, offers: false, inventory: false,
+        suppliers: false, waste: true,
         sales: false, expenses: false, shifts: true, reports: false, customers: true,
+        dashboard: false, payroll: false, qrmenu: true,
         users: false, settings: false, admin: false
     },
     kitchen: {
-        pos: false, 'orders.view': true, 'orders.status': true, kitchen: true, tables: true
+        pos: false, 'orders.view': true, 'orders.status': true, kitchen: true, tables: true,
+        waste: true, delivery: false
     }
 };
 
@@ -167,7 +184,7 @@ function startSession(u) {
 }
 
 function firstAllowedPage() {
-    const order = [['pos', 'pos'], ['kitchen', 'kitchen'], ['orders', 'orders.view'], ['tables', 'tables'], ['reports', 'reports'], ['settings', 'settings']];
+    const order = [['dashboard', 'dashboard'], ['pos', 'pos'], ['kitchen', 'kitchen'], ['orders', 'orders.view'], ['tables', 'tables'], ['delivery', 'delivery'], ['reports', 'reports'], ['settings', 'settings']];
     const f = order.find(([, perm]) => can(perm));
     return f ? f[0] : 'pos';
 }
@@ -200,9 +217,20 @@ function restoreSession() {
 function applyPermissions() {
     const u = currentUser();
     if (!u) return;
+    // الوحدات المعطّلة من الإعدادات تُخفى من القائمة
+    const st = getSettings();
+    const MODULE_SWITCH = {
+        delivery: 'enableDelivery', reservations: 'enableReservations',
+        suppliers: 'enableSuppliers', payroll: 'enablePayroll',
+        offers: 'enableOffers', tables: 'enableTables', shifts: 'enableShifts',
+        qrmenu: 'enableFeedback'
+    };
     document.querySelectorAll('[data-perm]').forEach(el => {
         const need = el.dataset.perm;
-        const ok = need.split('|').some(p => can(p.trim()));
+        let ok = need.split('|').some(p => can(p.trim()));
+        // إخفاء عنصر التنقّل إذا كانت الوحدة موقوفة
+        const page = el.dataset.page;
+        if (ok && page && MODULE_SWITCH[page] && st[MODULE_SWITCH[page]] === false) ok = false;
         el.style.display = ok ? '' : 'none';
     });
     // إخفاء عناوين المجموعات الفارغة

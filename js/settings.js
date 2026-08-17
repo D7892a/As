@@ -80,7 +80,44 @@ function renderSettings() {
                 <label class="switch"><input type="checkbox" id="setTrackStock" ${s.trackStock ? 'checked' : ''}><span class="slider-sw"></span></label></div>
             <div class="toggle-row"><div class="tr-info"><h5>منع البيع عند نفاد المخزون</h5><p>إيقاف الصنف تلقائياً عند وصول الكمية إلى صفر</p></div>
                 <label class="switch"><input type="checkbox" id="setBlockOut" ${s.blockOutOfStock ? 'checked' : ''}><span class="slider-sw"></span></label></div>
+            <div class="toggle-row"><div class="tr-info"><h5>قسم التوصيل (الدليفري)</h5><p>إدارة السائقين ومناطق التوصيل وأجورها</p></div>
+                <label class="switch"><input type="checkbox" id="setEnableDelivery" ${s.enableDelivery ? 'checked' : ''}><span class="slider-sw"></span></label></div>
+            <div class="toggle-row"><div class="tr-info"><h5>الحجوزات المسبقة</h5><p>حجز الطاولات وتنظيم الضيوف</p></div>
+                <label class="switch"><input type="checkbox" id="setEnableRes" ${s.enableReservations ? 'checked' : ''}><span class="slider-sw"></span></label></div>
+            <div class="toggle-row"><div class="tr-info"><h5>الموردون والمشتريات</h5><p>فواتير الشراء وذمم الموردين</p></div>
+                <label class="switch"><input type="checkbox" id="setEnableSup" ${s.enableSuppliers ? 'checked' : ''}><span class="slider-sw"></span></label></div>
+            <div class="toggle-row"><div class="tr-info"><h5>رواتب الموظفين</h5><p>كشوف الرواتب والمكافآت والسلف</p></div>
+                <label class="switch"><input type="checkbox" id="setEnablePayroll" ${s.enablePayroll ? 'checked' : ''}><span class="slider-sw"></span></label></div>
+            <div class="toggle-row"><div class="tr-info"><h5>سجل الهدر والتالف</h5><p>تسجيل التالف وخصمه من المخزون</p></div>
+                <label class="switch"><input type="checkbox" id="setEnableWaste" ${s.enableWaste ? 'checked' : ''}><span class="slider-sw"></span></label></div>
             <div class="field"><label>حد التنبيه لنقص المخزون</label><input class="input" id="setLowQty" type="number" value="${s.lowStockQty}"></div>
+        </div>
+
+        <!-- التوصيل والولاء -->
+        <div class="card card-pad settings-section">
+            <div class="ss-title"><i class="bi bi-truck"></i> إعدادات التوصيل</div>
+            <div class="row-flex">
+                <div class="field" style="flex:1"><label>أجرة التوصيل الافتراضية (د.ع)</label><input class="input" id="setDelFee" type="number" value="${s.defaultDeliveryFee || 0}"></div>
+                <div class="field" style="flex:1"><label>عمولة السائق لكل طلب (د.ع)</label><input class="input" id="setDrComm" type="number" value="${s.driverCommission || 0}"></div>
+            </div>
+            <p style="font-size:12.5px;color:var(--muted)">💡 يمكنك ضبط أجرة مختلفة لكل منطقة من صفحة «التوصيل ← مناطق التوصيل».</p>
+        </div>
+
+        <div class="card card-pad settings-section">
+            <div class="ss-title"><i class="bi bi-award"></i> مستويات ولاء العملاء</div>
+            <p style="font-size:12.5px;color:var(--muted);margin-bottom:12px">يُمنح العميل مستوى تلقائياً حسب إجمالي إنفاقه، مع خصم تلقائي عند البيع.</p>
+            <div class="row-flex">
+                <div class="field" style="flex:1"><label>🥈 حد المستوى الفضي (د.ع)</label><input class="input" id="setTierSilver" type="number" value="${s.tierSilver || 0}"></div>
+                <div class="field" style="flex:1"><label>خصم الفضي %</label><input class="input" id="setDiscSilver" type="number" value="${s.tierDiscountSilver || 0}"></div>
+            </div>
+            <div class="row-flex">
+                <div class="field" style="flex:1"><label>🥇 حد المستوى الذهبي (د.ع)</label><input class="input" id="setTierGold" type="number" value="${s.tierGold || 0}"></div>
+                <div class="field" style="flex:1"><label>خصم الذهبي %</label><input class="input" id="setDiscGold" type="number" value="${s.tierDiscountGold || 0}"></div>
+            </div>
+            <div class="row-flex">
+                <div class="field" style="flex:1"><label>💎 حد المستوى VIP (د.ع)</label><input class="input" id="setTierVip" type="number" value="${s.tierVip || 0}"></div>
+                <div class="field" style="flex:1"><label>خصم VIP %</label><input class="input" id="setDiscVip" type="number" value="${s.tierDiscountVip || 0}"></div>
+            </div>
         </div>
 
         <!-- الأمان -->
@@ -167,6 +204,20 @@ function saveAllSettings() {
     s.blockOutOfStock = document.getElementById('setBlockOut').checked;
     s.lowStockQty = Number(val('setLowQty', s.lowStockQty)) || 5;
     s.requirePin = document.getElementById('setRequirePin').checked;
+    const chk = (id, cur) => { const el = document.getElementById(id); return el ? el.checked : cur; };
+    s.enableDelivery = chk('setEnableDelivery', s.enableDelivery);
+    s.enableReservations = chk('setEnableRes', s.enableReservations);
+    s.enableSuppliers = chk('setEnableSup', s.enableSuppliers);
+    s.enablePayroll = chk('setEnablePayroll', s.enablePayroll);
+    s.enableWaste = chk('setEnableWaste', s.enableWaste);
+    s.defaultDeliveryFee = Number(val('setDelFee', s.defaultDeliveryFee)) || 0;
+    s.driverCommission = Number(val('setDrComm', s.driverCommission)) || 0;
+    s.tierSilver = Number(val('setTierSilver', s.tierSilver)) || 0;
+    s.tierGold = Number(val('setTierGold', s.tierGold)) || 0;
+    s.tierVip = Number(val('setTierVip', s.tierVip)) || 0;
+    s.tierDiscountSilver = Number(val('setDiscSilver', s.tierDiscountSilver)) || 0;
+    s.tierDiscountGold = Number(val('setDiscGold', s.tierDiscountGold)) || 0;
+    s.tierDiscountVip = Number(val('setDiscVip', s.tierDiscountVip)) || 0;
     if (window._settingLogo !== undefined) s.restaurantLogo = window._settingLogo;
     persist();
     window._settingLogo = undefined;
