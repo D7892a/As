@@ -45,15 +45,35 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') document.q
 const PAGE_TITLES = {
     pos: { title: 'نقطة البيع', sub: 'إنشاء طلب جديد وإتمام الدفع' },
     orders: { title: 'الطلبات', sub: 'إدارة ومتابعة جميع الطلبات' },
-    products: { title: 'المنتجات', sub: 'إدارة قائمة الطعام والأسعار' },
+    tables: { title: 'الطاولات', sub: 'إدارة صالة المطعم وحالة الطاولات' },
+    kitchen: { title: 'شاشة المطبخ', sub: 'متابعة تحضير الطلبات لحظياً' },
+    products: { title: 'الوجبات', sub: 'إدارة قائمة الطعام والأسعار' },
     categories: { title: 'الأقسام', sub: 'تنظيم المنتجات ضمن أقسام' },
+    offers: { title: 'العروض', sub: 'الوجبات المركّبة وعروض التوفير' },
+    inventory: { title: 'المخزون', sub: 'الجرد والكميات وتكلفة الأصناف' },
     sales: { title: 'المبيعات', sub: 'سجل المبيعات والإيرادات' },
+    expenses: { title: 'المصروفات', sub: 'تسجيل مصروفات المطعم وصافي الربح' },
+    shifts: { title: 'الورديات', sub: 'فتح وتقفيل الصندوق وتقارير Z' },
     customers: { title: 'العملاء', sub: 'قاعدة العملاء ونقاط الولاء' },
     reports: { title: 'التقارير', sub: 'تحليلات وإحصائيات الأداء' },
+    users: { title: 'المستخدمون والصلاحيات', sub: 'فريق العمل وحدود كل حساب' },
+    admin: { title: 'أدوات المدير', sub: 'التصفير والصيانة وسجل النشاط' },
     settings: { title: 'الإعدادات', sub: 'التحكم بكافة تفاصيل النظام' }
 };
 
+/* الصلاحية المطلوبة لكل صفحة */
+const PAGE_PERMS = {
+    pos: 'pos', orders: 'orders.view', tables: 'tables', kitchen: 'kitchen',
+    products: 'products', categories: 'categories', offers: 'offers', inventory: 'inventory',
+    sales: 'sales', expenses: 'expenses', shifts: 'shifts', customers: 'customers',
+    reports: 'reports', users: 'users', admin: 'admin', settings: 'settings'
+};
+
 function navigate(page) {
+    // حماية الصفحات بالصلاحيات
+    const need = PAGE_PERMS[page];
+    if (need && typeof can === 'function' && !can(need)) { denied(); return; }
+
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
     document.getElementById('page-' + page)?.classList.add('active');
@@ -66,9 +86,11 @@ function navigate(page) {
     }
     // إعادة رسم الصفحة
     const renderer = {
-        pos: () => {}, orders: renderOrders, products: renderProductsPage,
-        categories: renderCategories, sales: renderSales, customers: renderCustomers,
-        reports: renderReports, settings: renderSettings
+        pos: renderPOS, orders: renderOrders, tables: renderTables, kitchen: renderKitchen,
+        products: renderProductsPage, categories: renderCategories, offers: renderOffers,
+        inventory: renderInventory, sales: renderSales, expenses: renderExpenses,
+        shifts: renderShifts, customers: renderCustomers, reports: renderReports,
+        users: renderUsers, admin: renderAdmin, settings: renderSettings
     };
     renderer[page]?.();
 
@@ -84,6 +106,8 @@ function updateOrderBadge() {
     const active = DB.orders.filter(o => o.status === 'pending' || o.status === 'preparing').length;
     const badge = document.querySelector('.nav-item[data-page="orders"] .nav-badge');
     if (badge) badge.textContent = active;
+    const ob = document.getElementById('offersBadge');
+    if (ob) ob.textContent = getOffers().filter(isOfferLive).length;
 }
 
 /* ----- تحديث اسم الكاشير والمطعم في الواجهة ----- */
@@ -99,10 +123,13 @@ function refreshBranding() {
     document.querySelectorAll('.brand-logo').forEach(el => el.innerHTML = logoHtml);
     document.querySelectorAll('.login-logo').forEach(el => el.innerHTML = logoHtml);
     // الكاشير
-    const initials = (s.cashierName || '؟').trim().charAt(0);
+    const u = (typeof currentUser === 'function' && currentUser()) ? currentUser() : null;
+    const name = u ? u.name : s.cashierName;
+    const role = u ? (ROLE_LABEL[u.role] || u.jobTitle || s.cashierRole) : s.cashierRole;
+    const initials = u && u.avatar ? u.avatar : (name || '؟').trim().charAt(0);
     document.querySelectorAll('.cashier-avatar').forEach(el => el.textContent = initials);
-    document.querySelectorAll('.cashier-name').forEach(el => el.textContent = s.cashierName);
-    document.querySelectorAll('.cashier-role').forEach(el => el.textContent = s.cashierRole);
+    document.querySelectorAll('.cashier-name').forEach(el => el.textContent = name);
+    document.querySelectorAll('.cashier-role').forEach(el => el.textContent = role);
 }
 
 /* ----- ضغط الصور (Base64) قبل التخزين ----- */

@@ -3,6 +3,7 @@
    ============================================ */
 
 const DB_KEY = 'iq_cashier_db_v1';
+const SESSION_KEY = 'iq_cashier_session_v1';
 
 /* ----- بيانات أولية لمطعم عراقي ----- */
 function seedData() {
@@ -26,8 +27,20 @@ function seedData() {
             receiptFooter: 'نتمنى لكم وجبة هنية 🌹',
             lowStockAlert: true,
             printAuto: false,
-            theme: 'classic'
+            theme: 'classic',
+            /* ----- إعدادات جديدة ----- */
+            requirePin: true,        // طلب الرمز السري عند الدخول
+            trackStock: true,        // تتبّع المخزون وخصمه تلقائياً
+            lowStockQty: 5,          // حد التنبيه لنقص المخزون
+            blockOutOfStock: false,  // منع بيع المنتج عند نفاد الكمية
+            enableTables: true,      // تفعيل قسم الطاولات
+            enableOffers: true,      // تفعيل قسم العروض
+            enableShifts: true       // تفعيل الورديات
         },
+        users: [
+            { id: 'u_admin', name: 'مدير النظام', role: 'admin', pin: '1234', avatar: '👑', jobTitle: 'المدير العام', active: true, perms: {}, createdAt: Date.now() },
+            { id: 'u_cashier', name: 'أحمد الكاشير', role: 'cashier', pin: '1111', avatar: '🧑‍🍳', jobTitle: 'كاشير رئيسي', active: true, perms: {}, createdAt: Date.now() }
+        ],
         categories: [
             { id: 'c1', name: 'المشاوي العراقية', icon: '🍢', color: '#c1272d' },
             { id: 'c2', name: 'الأطباق الرئيسية', icon: '🍛', color: '#d4af37' },
@@ -65,6 +78,24 @@ function seedData() {
             { id: 'cu3', name: 'علي كاظم', phone: '0790 555 6666', points: 240, createdAt: Date.now() }
         ],
         orders: [],
+        offers: [
+            { id: 'of1', name: 'وجبة العائلة', emoji: '👨‍👩‍👧‍👦', image: '', description: 'كباب + شيش طاووق + تبولة + خبز تنور + مشروبين', items: [{ productId: 'p1', qty: 1 }, { productId: 'p3', qty: 1 }, { productId: 'p10', qty: 1 }, { productId: 'p19', qty: 2 }, { productId: 'p15', qty: 2 }], price: 30000, badge: 'الأكثر طلباً', active: true, startDate: '', endDate: '', days: [], sold: 0, createdAt: Date.now() },
+            { id: 'of2', name: 'عرض الغداء السريع', emoji: '⚡', image: '', description: 'مرقة باذنجان + خبز تنور + شاي', items: [{ productId: 'p5', qty: 1 }, { productId: 'p19', qty: 1 }, { productId: 'p12', qty: 1 }], price: 8500, badge: 'وفّر 1500', active: true, startDate: '', endDate: '', days: [], sold: 0, createdAt: Date.now() },
+            { id: 'of3', name: 'عرض الحلويات', emoji: '🍮', image: '', description: 'كنافة + بقلاوة + شاي', items: [{ productId: 'p16', qty: 1 }, { productId: 'p18', qty: 1 }, { productId: 'p12', qty: 2 }], price: 9500, badge: 'جديد', active: true, startDate: '', endDate: '', days: [], sold: 0, createdAt: Date.now() }
+        ],
+        tables: [
+            { id: 't1', name: 'طاولة 1', seats: 4, zone: 'الصالة', status: 'free', orderId: null, openedAt: null },
+            { id: 't2', name: 'طاولة 2', seats: 4, zone: 'الصالة', status: 'free', orderId: null, openedAt: null },
+            { id: 't3', name: 'طاولة 3', seats: 6, zone: 'الصالة', status: 'free', orderId: null, openedAt: null },
+            { id: 't4', name: 'طاولة 4', seats: 2, zone: 'الصالة', status: 'free', orderId: null, openedAt: null },
+            { id: 't5', name: 'طاولة 5', seats: 8, zone: 'العائلات', status: 'free', orderId: null, openedAt: null },
+            { id: 't6', name: 'طاولة 6', seats: 6, zone: 'العائلات', status: 'free', orderId: null, openedAt: null },
+            { id: 't7', name: 'طاولة 7', seats: 4, zone: 'الحديقة', status: 'free', orderId: null, openedAt: null },
+            { id: 't8', name: 'طاولة 8', seats: 4, zone: 'الحديقة', status: 'free', orderId: null, openedAt: null }
+        ],
+        expenses: [],
+        shifts: [],
+        activity: [],
         orderCounter: 1000,
         meta: { createdAt: Date.now() }
     };
@@ -126,17 +157,43 @@ function generateSeedOrders() {
     return orders.sort((a, b) => b.createdAt - a.createdAt);
 }
 
+/* ----- ترقية قاعدة البيانات (للنسخ القديمة) ----- */
+function migrateDB(db) {
+    const fresh = seedData();
+    // إعدادات ناقصة
+    Object.keys(fresh.settings).forEach(k => {
+        if (db.settings[k] === undefined) db.settings[k] = fresh.settings[k];
+    });
+    // مجموعات جديدة
+    ['users', 'offers', 'tables', 'expenses', 'shifts', 'activity'].forEach(k => {
+        if (!Array.isArray(db[k])) db[k] = fresh[k] ? JSON.parse(JSON.stringify(fresh[k])) : [];
+    });
+    if (!db.users.length) db.users = fresh.users;
+    // ضمان وجود مدير واحد على الأقل
+    if (!db.users.some(u => u.role === 'admin')) db.users.unshift(fresh.users[0]);
+    // حقول جديدة على المنتجات
+    db.products.forEach(p => {
+        if (p.stock === undefined) p.stock = 50;
+        if (p.cost === undefined) p.cost = Math.round((p.price || 0) * 0.55);
+        if (p.sku === undefined) p.sku = '';
+    });
+    db.tables.forEach(t => { if (t.status === undefined) t.status = 'free'; });
+    if (!db.meta) db.meta = { createdAt: Date.now() };
+    return db;
+}
+
 /* ----- تحميل / حفظ ----- */
 function loadDB() {
     try {
         const raw = localStorage.getItem(DB_KEY);
-        if (raw) return JSON.parse(raw);
+        if (raw) return migrateDB(JSON.parse(raw));
     } catch (e) { console.warn('DB load error', e); }
     const seed = seedData();
     // توليد طلبات تجريبية وضبط عدّاد الطلبات
     const seedOrders = generateSeedOrders();
     seed.orders = seedOrders;
     seed.orderCounter = seedOrders.reduce((m, o) => Math.max(m, o.number), 1000);
+    migrateDB(seed);
     saveDB(seed);
     return seed;
 }
@@ -175,6 +232,30 @@ const getCustomers = () => DB.customers;
 const getCustomer = (id) => DB.customers.find(c => c.id === id) || { id: 'cu1', name: 'عميل نقدي', phone: '-' };
 const getOrders = () => DB.orders;
 const getOrder = (id) => DB.orders.find(o => o.id === id);
+const getUsers = () => DB.users;
+const getUser = (id) => DB.users.find(u => u.id === id);
+const getOffers = () => DB.offers;
+const getOffer = (id) => DB.offers.find(o => o.id === id);
+const getTables = () => DB.tables;
+const getTable = (id) => DB.tables.find(t => t.id === id);
+const getExpenses = () => DB.expenses;
+const getShifts = () => DB.shifts;
+const getOpenShift = () => DB.shifts.find(s => s.status === 'open');
+/* السعر الأصلي للعرض قبل التخفيض */
+const offerOriginalPrice = (offer) => (offer.items || []).reduce((s, it) => {
+    const p = getProduct(it.productId);
+    return s + (p ? p.price * (it.qty || 1) : 0);
+}, 0);
+const offerSaving = (offer) => Math.max(0, offerOriginalPrice(offer) - Number(offer.price || 0));
+/* هل العرض ساري اليوم؟ */
+function isOfferLive(offer) {
+    if (!offer.active) return false;
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    if (offer.startDate && new Date(offer.startDate).setHours(0, 0, 0, 0) > today.getTime()) return false;
+    if (offer.endDate && new Date(offer.endDate).setHours(23, 59, 59, 0) < Date.now()) return false;
+    if (Array.isArray(offer.days) && offer.days.length && !offer.days.includes(new Date().getDay())) return false;
+    return true;
+}
 const nextOrderNumber = () => { DB.orderCounter += 1; return DB.orderCounter; };
 
 function persist() { saveDB(DB); }
@@ -225,8 +306,21 @@ const api = {
         order.id = uid('ord');
         order.number = nextOrderNumber();
         order.createdAt = Date.now();
-        order.cashierName = getSettings().cashierName;
+        order.cashierName = (typeof currentUser === 'function' && currentUser()) ? currentUser().name : getSettings().cashierName;
+        order.cashierId = (typeof currentUser === 'function' && currentUser()) ? currentUser().id : '';
+        const sh = getOpenShift();
+        order.shiftId = sh ? sh.id : null;
         DB.orders.unshift(order);
+        // خصم المخزون + احتساب مبيعات العروض
+        applyStockForOrder(order, -1);
+        (order.items || []).forEach(i => {
+            if (i.isOffer) { const of = getOffer(i.offerId); if (of) of.sold = (of.sold || 0) + i.qty; }
+        });
+        // ربط الطاولة
+        if (order.tableId) {
+            const t = getTable(order.tableId);
+            if (t) { t.status = 'busy'; t.orderId = order.id; t.openedAt = Date.now(); }
+        }
         // تحديث نقاط العميل
         if (order.customerId && order.customerId !== 'cu1' && getSettings().enablePoints) {
             const cust = getCustomer(order.customerId);
@@ -235,22 +329,209 @@ const api = {
                 cust.points = (cust.points || 0) + earned;
             }
         }
+        logActivity('order', `طلب جديد #${order.number} بمبلغ ${moneyNum(order.total)}`);
         persist();
         return order;
     },
     updateOrderStatus(id, status) {
         const o = getOrder(id); if (!o) return;
-        o.status = status; persist();
+        o.status = status;
+        // تحرير الطاولة عند الإكمال أو الإلغاء
+        if ((status === 'completed' || status === 'cancelled') && o.tableId) {
+            const t = getTable(o.tableId);
+            if (t && t.orderId === o.id) { t.status = 'free'; t.orderId = null; t.openedAt = null; }
+        }
+        // إرجاع المخزون عند الإلغاء
+        if (status === 'cancelled' && !o.stockReturned) { applyStockForOrder(o, +1); o.stockReturned = true; }
+        logActivity('order', `تحديث حالة الطلب #${o.number} إلى ${status}`);
+        persist();
     },
     deleteOrder(id) {
-        DB.orders = DB.orders.filter(o => o.id !== id); persist();
+        const o = getOrder(id);
+        if (o && o.tableId) {
+            const t = getTable(o.tableId);
+            if (t && t.orderId === o.id) { t.status = 'free'; t.orderId = null; t.openedAt = null; }
+        }
+        DB.orders = DB.orders.filter(o => o.id !== id);
+        logActivity('order', `حذف الطلب #${o ? o.number : id}`);
+        persist();
     },
+
+    /* ============ المستخدمون والصلاحيات ============ */
+    addUser(data) {
+        const u = { id: uid('u'), role: 'cashier', pin: '0000', avatar: '🧑‍🍳', jobTitle: 'كاشير', active: true, perms: {}, createdAt: Date.now(), ...data };
+        DB.users.push(u); logActivity('user', `إضافة مستخدم: ${u.name}`); persist(); return u;
+    },
+    updateUser(id, data) {
+        const u = getUser(id); if (!u) return;
+        Object.assign(u, data); logActivity('user', `تعديل المستخدم: ${u.name}`); persist();
+    },
+    deleteUser(id) {
+        const u = getUser(id);
+        if (!u) return false;
+        if (u.role === 'admin' && DB.users.filter(x => x.role === 'admin').length <= 1) { toast('لا يمكن حذف آخر مدير في النظام', 'error'); return false; }
+        if (typeof currentUser === 'function' && currentUser() && currentUser().id === id) { toast('لا يمكنك حذف حسابك أثناء استخدامه', 'error'); return false; }
+        DB.users = DB.users.filter(x => x.id !== id); logActivity('user', `حذف المستخدم: ${u.name}`); persist(); return true;
+    },
+
+    /* ============ العروض ============ */
+    addOffer(data) {
+        const o = { id: uid('of'), emoji: '🎁', image: '', items: [], price: 0, badge: '', active: true, startDate: '', endDate: '', days: [], sold: 0, createdAt: Date.now(), ...data };
+        DB.offers.push(o); logActivity('offer', `إضافة عرض: ${o.name}`); persist(); return o;
+    },
+    updateOffer(id, data) { const o = getOffer(id); if (!o) return; Object.assign(o, data); persist(); },
+    deleteOffer(id) { DB.offers = DB.offers.filter(o => o.id !== id); persist(); },
+
+    /* ============ الطاولات ============ */
+    addTable(data) {
+        const t = { id: uid('t'), seats: 4, zone: 'الصالة', status: 'free', orderId: null, openedAt: null, ...data };
+        DB.tables.push(t); persist(); return t;
+    },
+    updateTable(id, data) { const t = getTable(id); if (!t) return; Object.assign(t, data); persist(); },
+    deleteTable(id) { DB.tables = DB.tables.filter(t => t.id !== id); persist(); },
+
+    /* ============ المصروفات ============ */
+    addExpense(data) {
+        const sh = getOpenShift();
+        const e = {
+            id: uid('ex'), category: 'أخرى', amount: 0, note: '', createdAt: Date.now(),
+            userName: (typeof currentUser === 'function' && currentUser()) ? currentUser().name : '-',
+            shiftId: sh ? sh.id : null, ...data
+        };
+        DB.expenses.unshift(e); logActivity('expense', `مصروف: ${e.title} (${moneyNum(e.amount)})`); persist(); return e;
+    },
+    updateExpense(id, data) { const e = DB.expenses.find(x => x.id === id); if (!e) return; Object.assign(e, data); persist(); },
+    deleteExpense(id) { DB.expenses = DB.expenses.filter(e => e.id !== id); persist(); },
+
+    /* ============ الورديات ============ */
+    openShift(openingCash, note = '') {
+        if (getOpenShift()) { toast('توجد وردية مفتوحة بالفعل', 'warning'); return null; }
+        const u = (typeof currentUser === 'function' && currentUser()) ? currentUser() : { id: '', name: getSettings().cashierName };
+        const s = { id: uid('sh'), userId: u.id, userName: u.name, openedAt: Date.now(), closedAt: null, openingCash: Number(openingCash) || 0, closingCash: 0, note, status: 'open' };
+        DB.shifts.unshift(s); logActivity('shift', `فتح وردية برصيد ${moneyNum(s.openingCash)}`); persist(); return s;
+    },
+    closeShift(closingCash, note = '') {
+        const s = getOpenShift(); if (!s) return null;
+        s.closedAt = Date.now();
+        s.closingCash = Number(closingCash) || 0;
+        s.note = note || s.note;
+        s.status = 'closed';
+        const sum = shiftSummary(s);
+        s.summary = sum;
+        s.difference = s.closingCash - sum.expectedCash;
+        logActivity('shift', `إغلاق وردية — الفرق ${moneyNum(s.difference)}`);
+        persist(); return s;
+    },
+
+    /* ============ المخزون ============ */
+    setStock(productId, qty, reason = 'تعديل يدوي') {
+        const p = getProduct(productId); if (!p) return;
+        p.stock = Math.max(0, Number(qty) || 0);
+        logActivity('stock', `${reason}: ${p.name} = ${p.stock}`);
+        persist();
+    },
+    addStock(productId, qty, reason = 'إضافة مخزون') {
+        const p = getProduct(productId); if (!p) return;
+        p.stock = Math.max(0, (Number(p.stock) || 0) + (Number(qty) || 0));
+        logActivity('stock', `${reason}: ${p.name} (+${qty})`);
+        persist();
+    },
+
+    /* ============ أدوات المدير — التصفير ============ */
+    resetOrders(alsoCounter = false) {
+        DB.orders = [];
+        DB.tables.forEach(t => { t.status = 'free'; t.orderId = null; t.openedAt = null; });
+        if (alsoCounter) DB.orderCounter = 1000;
+        logActivity('danger', 'تصفير جميع الطلبات');
+        persist();
+    },
+    resetTodayOrders() {
+        const start = new Date().setHours(0, 0, 0, 0);
+        const before = DB.orders.length;
+        DB.orders = DB.orders.filter(o => o.createdAt < start);
+        logActivity('danger', `حذف طلبات اليوم (${before - DB.orders.length})`);
+        persist();
+        return before - DB.orders.length;
+    },
+    resetCancelledOrders() {
+        const before = DB.orders.length;
+        DB.orders = DB.orders.filter(o => o.status !== 'cancelled');
+        persist();
+        return before - DB.orders.length;
+    },
+    resetProducts() { DB.products = []; logActivity('danger', 'تصفير جميع الوجبات'); persist(); },
+    restoreDefaultMenu() {
+        const fresh = seedData();
+        DB.products = fresh.products.map(p => ({ ...p, stock: 50, cost: Math.round(p.price * 0.55), sku: '' }));
+        DB.categories = fresh.categories;
+        logActivity('danger', 'استعادة القائمة الافتراضية');
+        persist();
+    },
+    resetCategories() { DB.categories = []; DB.products = []; logActivity('danger', 'تصفير الأقسام والوجبات'); persist(); },
+    resetOffers() { DB.offers = []; logActivity('danger', 'تصفير العروض'); persist(); },
+    resetCustomers() {
+        DB.customers = DB.customers.filter(c => c.id === 'cu1');
+        logActivity('danger', 'تصفير العملاء');
+        persist();
+    },
+    resetPoints() { DB.customers.forEach(c => c.points = 0); logActivity('danger', 'تصفير نقاط الولاء'); persist(); },
+    resetExpenses() { DB.expenses = []; logActivity('danger', 'تصفير المصروفات'); persist(); },
+    resetShifts() { DB.shifts = []; logActivity('danger', 'تصفير الورديات'); persist(); },
+    resetCounter(startAt = 1000) { DB.orderCounter = Number(startAt) || 1000; logActivity('danger', `ضبط عدّاد الطلبات على ${DB.orderCounter}`); persist(); },
+    resetStock(qty = 0) { DB.products.forEach(p => p.stock = Number(qty) || 0); logActivity('danger', 'تصفير المخزون'); persist(); },
+    resetActivity() { DB.activity = []; persist(); },
     // الإعدادات
     saveSettings(data) {
         Object.assign(DB.settings, data); persist();
     },
     resetAll() {
         localStorage.removeItem(DB_KEY);
+        localStorage.removeItem(SESSION_KEY);
         DB = loadDB();
     }
 };
+
+/* ----- خصم/إرجاع المخزون لطلب كامل ----- */
+function applyStockForOrder(order, sign) {
+    if (!getSettings().trackStock) return;
+    (order.items || []).forEach(line => {
+        if (line.isOffer) {
+            const of = getOffer(line.offerId);
+            (of?.items || []).forEach(it => {
+                const p = getProduct(it.productId);
+                if (p && p.stock !== undefined) p.stock = Math.max(0, (Number(p.stock) || 0) + sign * (it.qty || 1) * line.qty);
+            });
+        } else {
+            const p = getProduct(line.productId);
+            if (p && p.stock !== undefined) p.stock = Math.max(0, (Number(p.stock) || 0) + sign * line.qty);
+        }
+    });
+}
+
+/* ----- ملخّص وردية ----- */
+function shiftSummary(shift) {
+    const from = shift.openedAt;
+    const to = shift.closedAt || Date.now();
+    const orders = DB.orders.filter(o => o.createdAt >= from && o.createdAt <= to && o.status !== 'cancelled');
+    const expenses = DB.expenses.filter(e => e.createdAt >= from && e.createdAt <= to);
+    const by = (m) => orders.filter(o => o.paymentMethod === m).reduce((s, o) => s + o.total, 0);
+    const cash = by('cash'), card = by('card'), online = by('online');
+    const total = cash + card + online;
+    const expTotal = expenses.reduce((s, e) => s + Number(e.amount || 0), 0);
+    return {
+        orders: orders.length, items: orders.reduce((n, o) => n + o.items.reduce((x, i) => x + i.qty, 0), 0),
+        cash, card, online, total, expenses: expTotal,
+        expectedCash: (Number(shift.openingCash) || 0) + cash - expTotal,
+        net: total - expTotal
+    };
+}
+
+/* ----- سجل النشاط ----- */
+function logActivity(type, text) {
+    if (!Array.isArray(DB.activity)) DB.activity = [];
+    DB.activity.unshift({
+        id: uid('a'), type, text, at: Date.now(),
+        user: (typeof currentUser === 'function' && currentUser()) ? currentUser().name : 'النظام'
+    });
+    if (DB.activity.length > 300) DB.activity.length = 300;
+}

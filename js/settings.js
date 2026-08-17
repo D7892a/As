@@ -67,6 +67,33 @@ function renderSettings() {
                 <label class="switch"><input type="checkbox" id="setPrintAuto" ${s.printAuto ? 'checked' : ''}><span class="slider-sw"></span></label></div>
         </div>
 
+        <!-- الأقسام والوحدات -->
+        <div class="card card-pad settings-section">
+            <div class="ss-title"><i class="bi bi-toggles"></i> وحدات النظام</div>
+            <div class="toggle-row"><div class="tr-info"><h5>قسم العروض</h5><p>إظهار العروض والوجبات المركّبة في نقطة البيع</p></div>
+                <label class="switch"><input type="checkbox" id="setEnableOffers" ${s.enableOffers ? 'checked' : ''}><span class="slider-sw"></span></label></div>
+            <div class="toggle-row"><div class="tr-info"><h5>قسم الطاولات</h5><p>ربط طلبات الصالة بأرقام الطاولات</p></div>
+                <label class="switch"><input type="checkbox" id="setEnableTables" ${s.enableTables ? 'checked' : ''}><span class="slider-sw"></span></label></div>
+            <div class="toggle-row"><div class="tr-info"><h5>الورديات وتقفيل الصندوق</h5><p>فتح وإغلاق الوردية مع تقرير Z</p></div>
+                <label class="switch"><input type="checkbox" id="setEnableShifts" ${s.enableShifts ? 'checked' : ''}><span class="slider-sw"></span></label></div>
+            <div class="toggle-row"><div class="tr-info"><h5>تتبّع المخزون</h5><p>خصم الكميات تلقائياً عند البيع</p></div>
+                <label class="switch"><input type="checkbox" id="setTrackStock" ${s.trackStock ? 'checked' : ''}><span class="slider-sw"></span></label></div>
+            <div class="toggle-row"><div class="tr-info"><h5>منع البيع عند نفاد المخزون</h5><p>إيقاف الصنف تلقائياً عند وصول الكمية إلى صفر</p></div>
+                <label class="switch"><input type="checkbox" id="setBlockOut" ${s.blockOutOfStock ? 'checked' : ''}><span class="slider-sw"></span></label></div>
+            <div class="field"><label>حد التنبيه لنقص المخزون</label><input class="input" id="setLowQty" type="number" value="${s.lowStockQty}"></div>
+        </div>
+
+        <!-- الأمان -->
+        <div class="card card-pad settings-section">
+            <div class="ss-title"><i class="bi bi-shield-lock"></i> الأمان والدخول</div>
+            <div class="toggle-row"><div class="tr-info"><h5>طلب الرمز السري عند الدخول</h5><p>حماية حسابات الكاشير والمدير برمز PIN</p></div>
+                <label class="switch"><input type="checkbox" id="setRequirePin" ${s.requirePin ? 'checked' : ''}><span class="slider-sw"></span></label></div>
+            <div class="row-flex" style="margin-top:10px">
+                <button class="btn btn-light" data-perm="users" onclick="navigate('users')"><i class="bi bi-person-badge"></i> إدارة المستخدمين والصلاحيات</button>
+                <button class="btn btn-light" data-perm="admin" onclick="navigate('admin')"><i class="bi bi-shield-lock"></i> أدوات المدير (التصفير)</button>
+            </div>
+        </div>
+
         <!-- إدارة النظام -->
         <div class="card card-pad settings-section">
             <div class="ss-title"><i class="bi bi-gear-wide-connected"></i> إدارة النظام</div>
@@ -94,6 +121,9 @@ function renderSettings() {
                     <div class="totals-row"><span>عدد الأقسام</span><strong>${getCategories().length}</strong></div>
                     <div class="totals-row"><span>عدد العملاء</span><strong>${getCustomers().length}</strong></div>
                     <div class="totals-row"><span>إجمالي الطلبات</span><strong>${getOrders().length}</strong></div>
+                    <div class="totals-row"><span>العروض</span><strong>${getOffers().length}</strong></div>
+                    <div class="totals-row"><span>الطاولات</span><strong>${getTables().length}</strong></div>
+                    <div class="totals-row"><span>المستخدمون</span><strong>${getUsers().length}</strong></div>
                     <div class="totals-row"><span>تاريخ التشغيل</span><strong style="font-size:11px">${fmtDate(DB.meta.createdAt)}</strong></div>
                 </div>
             </div>
@@ -105,6 +135,7 @@ function renderSettings() {
         window._settingLogo = data;
         box.innerHTML = `<img src="${data}"><button class="clear-img" onclick="event.stopPropagation();clearSettingImg('restaurantLogo')"><i class="bi bi-x"></i></button><input type="file" accept="image/*" hidden>`;
     });
+    applyPermissions();
 }
 function clearSettingImg(key) {
     if (key === 'restaurantLogo') window._settingLogo = '';
@@ -129,6 +160,13 @@ function saveAllSettings() {
     s.footerMessage = val('setFooter', s.footerMessage);
     s.receiptFooter = val('setReceiptFoot', s.receiptFooter);
     s.printAuto = document.getElementById('setPrintAuto').checked;
+    s.enableOffers = document.getElementById('setEnableOffers').checked;
+    s.enableTables = document.getElementById('setEnableTables').checked;
+    s.enableShifts = document.getElementById('setEnableShifts').checked;
+    s.trackStock = document.getElementById('setTrackStock').checked;
+    s.blockOutOfStock = document.getElementById('setBlockOut').checked;
+    s.lowStockQty = Number(val('setLowQty', s.lowStockQty)) || 5;
+    s.requirePin = document.getElementById('setRequirePin').checked;
     if (window._settingLogo !== undefined) s.restaurantLogo = window._settingLogo;
     persist();
     window._settingLogo = undefined;
@@ -163,6 +201,7 @@ function restoreData(e) {
     reader.readAsText(file);
 }
 function resetSystem() {
+    if (!can('admin')) { denied(); return; }
     if (!confirmAction('⚠️ سيتم حذف جميع البيانات (الطلبات، العملاء، المنتجات) والعودة للوضع الافتراضي. متابعة؟')) return;
     api.resetAll();
     refreshBranding();
@@ -210,6 +249,7 @@ function showReceipt(orderId) {
                 <div><span>العميل:</span><strong>${o.customerName}</strong></div>
                 ${o.customerPhone !== '-' ? `<div><span>الهاتف:</span><strong style="direction:ltr">${o.customerPhone}</strong></div>` : ''}
                 <div><span>النوع:</span><strong>${o.orderTypeLabel}</strong></div>
+                ${o.tableName ? `<div><span>الطاولة:</span><strong>${o.tableName}</strong></div>` : ''}
                 <div><span>الكاشير:</span><strong>${o.cashierName || '-'}</strong></div>
                 <div><span>الدفع:</span><strong>${PAY_LABEL[o.paymentMethod] || 'كاش'}</strong></div>
             </div>
@@ -236,6 +276,7 @@ function showReceipt(orderId) {
         </div>
     </div>`;
 
+    if (getSettings().printAuto) setTimeout(() => printElement(html, 'receipt'), 350);
     openModalContent(`إيصال الطلب #${o.number}`, html, `
         <button class="btn btn-ghost" onclick="closeModal('dynModal')">إغلاق</button>
         <button class="btn btn-dark" onclick="printElement(document.querySelector('#dynModal .receipt').outerHTML, 'receipt')"><i class="bi bi-printer"></i> طباعة / حفظ PDF</button>
