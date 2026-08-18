@@ -2,7 +2,7 @@
    Service Worker — تشغيل النظام بدون إنترنت
    ============================================ */
 
-const CACHE = 'iq-cashier-v2';
+const CACHE = 'iq-cashier-v3';
 const ASSETS = [
     './',
     './index.html',

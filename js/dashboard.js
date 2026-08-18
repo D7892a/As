@@ -72,6 +72,13 @@ function renderDashboard() {
     if (todayRes) alerts.push({ t: 'info', i: 'bi-calendar-check', m: `${todayRes} حجز مؤكد لهذا اليوم`, a: `navigate('reservations')` });
     const debts = getSuppliers().reduce((s, x) => s + Number(x.balance || 0), 0);
     if (debts) alerts.push({ t: 'warn', i: 'bi-wallet', m: `ذمم مستحقة للموردين: ${moneyNum(debts)}`, a: `navigate('suppliers')` });
+    const u = currentUser();
+    if (u && getSettings().enableAttendance) {
+        const rec = todayAttendance(u.id);
+        if (!rec || !rec.inAt) alerts.push({ t: 'warn', i: 'bi-fingerprint', m: 'لم تسجّل حضورك اليوم', a: `toggleMyClock()` });
+    }
+    const unsettle = getDeliveries().filter(d => d.status === 'delivered' && !d.settled).length;
+    if (unsettle) alerts.push({ t: 'warn', i: 'bi-safe2', m: `${unsettle} طلب توصيل بانتظار تسوية السائق`, a: `navigate('delivery');setTimeout(()=>setDlTab('settle'),200)` });
 
     wrap.innerHTML = `
         <div class="dash-hero">
@@ -150,6 +157,7 @@ function renderDashboard() {
                     ${kpiRow('bi-calendar-check', 'حجوزات اليوم', todayRes, Math.min(100, todayRes * 20))}
                     ${kpiRow('bi-box-seam', 'أصناف تحتاج تزويد', lowStock.length, Math.min(100, lowStock.length * 10))}
                     ${kpiRow('bi-safe', 'حالة الوردية', openShift ? 'مفتوحة' : 'مغلقة', openShift ? 100 : 0)}
+                    ${kpiRow('bi-fingerprint', 'حضور اليوم', `${getAttendance().filter(a => a.date === todayKey()).length} / ${getUsers().filter(u => u.active !== false).length}`, Math.round(getAttendance().filter(a => a.date === todayKey()).length / Math.max(1, getUsers().filter(u => u.active !== false).length) * 100))}
                 </div>
                 ${lowStock.length ? `<div class="low-stock-list">
                     <div class="ss-title" style="margin-top:12px"><i class="bi bi-exclamation-triangle"></i> تحتاج تزويد عاجل</div>

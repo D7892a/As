@@ -33,6 +33,10 @@ function renderAdmin() {
         { id: 'payroll', icon: 'bi-cash-stack', color: 'danger', title: 'تصفير كشوف الرواتب', desc: `${getPayroll().length} قيد راتب`, btn: 'حذف الرواتب', fn: 'dangerResetPayroll()' },
         { id: 'wastes', icon: 'bi-trash3', color: 'warn', title: 'تصفير سجل الهدر', desc: `${getWastes().length} قيد هدر`, btn: 'حذف السجل', fn: 'dangerResetWastes()' },
         { id: 'feedback', icon: 'bi-chat-heart', color: 'warn', title: 'تصفير التقييمات', desc: `${getFeedback().length} تقييم`, btn: 'حذف التقييمات', fn: 'dangerResetFeedback()' },
+        { id: 'attendance', icon: 'bi-fingerprint', color: 'warn', title: 'تصفير سجل الحضور', desc: `${getAttendance().length} قيد حضور`, btn: 'حذف الحضور', fn: 'dangerResetAttendance()' },
+        { id: 'advances', icon: 'bi-piggy-bank', color: 'warn', title: 'تصفير السلف', desc: `${getAdvances().length} سلفة`, btn: 'حذف السلف', fn: 'dangerResetAdvances()' },
+        { id: 'held', icon: 'bi-pause-circle', color: 'warn', title: 'تصفير الطلبات المعلّقة', desc: `${getHeldOrders().length} طلب معلّق`, btn: 'حذف المعلّقة', fn: 'dangerResetHeld()' },
+        { id: 'settle', icon: 'bi-safe2', color: 'warn', title: 'تصفير تسويات السائقين', desc: `${getSettlements().length} تسوية`, btn: 'حذف التسويات', fn: 'dangerResetSettlements()' },
         { id: 'all', icon: 'bi-exclamation-octagon-fill', color: 'danger', title: 'إعادة ضبط المصنع', desc: 'حذف كل شيء والعودة لحالة النظام الأولى', btn: 'إعادة ضبط كاملة', fn: 'dangerFactoryReset()' }
     ];
 
@@ -71,11 +75,13 @@ function renderAdmin() {
             </div>`;
         })()}
 
+        ${renderCashierPerf()}
+
         <div class="stats-grid">
             <div class="stat"><i class="bi bi-receipt stat-icon"></i><div class="stat-label">الطلبات</div><div class="stat-value">${getOrders().length}</div></div>
             <div class="stat gold"><i class="bi bi-grid stat-icon" style="color:rgba(212,175,55,.1)"></i><div class="stat-label">الوجبات</div><div class="stat-value">${getProducts().length}</div></div>
             <div class="stat green"><i class="bi bi-people stat-icon" style="color:rgba(22,163,74,.1)"></i><div class="stat-label">العملاء</div><div class="stat-value">${getCustomers().length}</div></div>
-            <div class="stat blue"><i class="bi bi-stars stat-icon" style="color:rgba(37,99,235,.1)"></i><div class="stat-label">العروض</div><div class="stat-value">${getOffers().length}</div></div>
+            <div class="stat blue"><i class="bi bi-geo-alt stat-icon" style="color:rgba(37,99,235,.1)"></i><div class="stat-label">مناطق التوصيل</div><div class="stat-value">${getZones().length}</div></div>
         </div>
 
         <div class="danger-grid">
@@ -182,6 +188,35 @@ function dangerResetWastes() {
 }
 function dangerResetFeedback() {
     _danger('تصفير التقييمات', 'سيتم حذف جميع تقييمات وآراء الزبائن.', () => api.resetFeedback());
+}
+function dangerResetAttendance() {
+    _danger('تصفير سجل الحضور', 'سيتم حذف جميع قيود الحضور والانصراف.', () => api.resetAttendance());
+}
+function dangerResetAdvances() {
+    _danger('تصفير السلف', 'سيتم حذف جميع السلف المسجّلة.', () => api.resetAdvances());
+}
+function dangerResetHeld() {
+    _danger('تصفير الطلبات المعلّقة', 'سيتم حذف كل الطلبات المعلّقة في نقطة البيع.', () => api.resetHeldOrders());
+}
+function dangerResetSettlements() {
+    _danger('تصفير تسويات السائقين', 'سيتم حذف سجل تسويات الصندوق (الطلبات تبقى).', () => api.resetSettlements());
+}
+function renderCashierPerf() {
+    const start = new Date().setHours(0, 0, 0, 0);
+    const today = getOrders().filter(o => o.createdAt >= start && o.status !== 'cancelled');
+    const by = {};
+    today.forEach(o => {
+        const k = o.cashierName || '—';
+        if (!by[k]) by[k] = { n: 0, v: 0, disc: 0 };
+        by[k].n++; by[k].v += Number(o.total || 0); by[k].disc += Number(o.discount || 0);
+    });
+    const rows = Object.entries(by).sort((a, b) => b[1].v - a[1].v);
+    if (!rows.length) return '';
+    return `<div class="card card-pad" style="margin-bottom:18px">
+        <div class="ss-title"><i class="bi bi-person-workspace"></i> أداء الكاشير اليوم</div>
+        <div class="table-wrap"><table class="tbl"><thead><tr><th>الكاشير</th><th>الطلبات</th><th>المبيعات</th><th>الخصومات</th><th>متوسط الفاتورة</th></tr></thead>
+        <tbody>${rows.map(([n, v]) => `<tr><td><strong>${n}</strong></td><td>${v.n}</td><td>${moneyNum(v.v)}</td><td>${moneyNum(v.disc)}</td><td>${moneyNum(Math.round(v.v / v.n))}</td></tr>`).join('')}</tbody></table></div>
+    </div>`;
 }
 function dangerFactoryReset() {
     _danger('إعادة ضبط المصنع', '⚠️ سيتم مسح <strong>كل البيانات</strong> (طلبات، وجبات، عملاء، مستخدمين، إعدادات) والعودة للحالة الأولى.', () => {

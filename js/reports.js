@@ -104,6 +104,31 @@ function renderReports() {
             </div>
         </div>
 
+        ${(() => {
+            const zmap = {};
+            orders.filter(o => o.orderType === 'delivery').forEach(o => {
+                const name = o.zoneName || getZone(o.zoneId)?.name || 'بدون منطقة';
+                if (!zmap[name]) zmap[name] = { n: 0, v: 0, fee: 0 };
+                zmap[name].n++; zmap[name].v += Number(o.total || 0); zmap[name].fee += Number(o.deliveryFee || 0);
+            });
+            const zs = Object.entries(zmap).sort((a, b) => b[1].v - a[1].v);
+            if (!zs.length) return '';
+            return `<div class="card card-pad" style="margin-bottom:16px">
+                <h3 style="font-size:15px;font-weight:800;margin-bottom:14px"><i class="bi bi-geo-alt" style="color:var(--primary)"></i> المبيعات حسب منطقة التوصيل</h3>
+                ${zs.map(([n, v]) => {
+                    const pct = totalRevenue ? Math.round(v.v / totalRevenue * 100) : 0;
+                    return `<div style="margin-bottom:10px">
+                        <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:700;margin-bottom:5px">
+                            <span>${n} (${v.n} طلب)</span><span>${moneyNum(v.v)} • أجور ${moneyNum(v.fee)}</span>
+                        </div>
+                        <div style="height:10px;background:var(--cream);border-radius:10px;overflow:hidden">
+                            <div style="height:100%;width:${pct}%;background:var(--info);border-radius:10px"></div>
+                        </div>
+                    </div>`;
+                }).join('')}
+            </div>`;
+        })()}
+
         <div class="card card-pad">
             <h3 style="font-size:15px;font-weight:800;margin-bottom:14px"><i class="bi bi-list-check" style="color:var(--primary)"></i> أداء الأقسام</h3>
             ${catArr.length ? catArr.sort((a,b)=>b.revenue-a.revenue).map(c => {

@@ -31,7 +31,8 @@ const PERMS = [
     { group: 'القائمة', key: 'waste', label: 'سجل الهدر والتالف', desc: 'تسجيل التالف وخصمه من المخزون', icon: 'bi-trash3' },
 
     { group: 'المال', key: 'dashboard', label: 'لوحة القيادة', desc: 'المؤشرات اللحظية والتحليل السريع', icon: 'bi-speedometer2' },
-    { group: 'المال', key: 'payroll', label: 'رواتب الموظفين', desc: 'كشوف الرواتب والمكافآت والسلف', icon: 'bi-cash-stack' },
+    { group: 'المال', key: 'payroll', label: 'رواتب الموظفين', desc: 'كشوف يومية/أسبوعية/شهرية والحضور والسلف', icon: 'bi-cash-stack' },
+    { group: 'المال', key: 'attendance', label: 'تسجيل الحضور', desc: 'حضور وانصراف الموظفين', icon: 'bi-fingerprint' },
 
     { group: 'العملاء', key: 'customers', label: 'إدارة العملاء', desc: 'قاعدة العملاء ونقاط الولاء', icon: 'bi-people' },
     { group: 'العملاء', key: 'qrmenu', label: 'المنيو الرقمي والتقييمات', desc: 'رمز QR للمنيو وآراء الزبائن', icon: 'bi-qr-code' },
@@ -53,7 +54,7 @@ const ROLE_DEFAULTS = {
         products: true, categories: true, offers: true, inventory: true,
         suppliers: true, waste: true,
         sales: true, expenses: true, shifts: true, reports: true, customers: true,
-        dashboard: true, payroll: false, qrmenu: true,
+        dashboard: true, payroll: false, attendance: true, qrmenu: true,
         users: false, settings: true, admin: false
     },
     cashier: {
@@ -63,12 +64,12 @@ const ROLE_DEFAULTS = {
         products: false, categories: false, offers: false, inventory: false,
         suppliers: false, waste: true,
         sales: false, expenses: false, shifts: true, reports: false, customers: true,
-        dashboard: false, payroll: false, qrmenu: true,
+        dashboard: false, payroll: false, attendance: true, qrmenu: true,
         users: false, settings: false, admin: false
     },
     kitchen: {
         pos: false, 'orders.view': true, 'orders.status': true, kitchen: true, tables: true,
-        waste: true, delivery: false
+        waste: true, delivery: false, attendance: true
     }
 };
 

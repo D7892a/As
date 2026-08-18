@@ -1166,3 +1166,62 @@ html.dark ::-webkit-scrollbar-thumb { background: #3a3128; }
     .res-time { min-width: 66px; }
     .phone-frame { max-width: 260px; }
 }
+
+/* ===== منتقي المناطق + نقطة البيع المطوّرة ===== */
+.zone-picker { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+.zone-picker.zp-sm { grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); }
+.zp-card {
+    background: #fff; border: 2px solid var(--border); border-radius: 14px;
+    padding: 12px 10px; text-align: center; cursor: pointer; transition: .18s;
+    border-top: 4px solid var(--zc, var(--primary));
+}
+.zp-card:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+.zp-card.active { border-color: var(--zc, var(--primary)); background: var(--cream); box-shadow: 0 0 0 3px color-mix(in srgb, var(--zc, var(--primary)) 25%, transparent); }
+.zp-name { font-weight: 900; font-size: 14px; }
+.zp-fee { font-size: 16px; font-weight: 900; color: var(--primary-dark); margin: 4px 0 2px; }
+.zp-eta { font-size: 11px; color: var(--muted); font-weight: 700; }
+.zone-pick-mini { width: 100%; }
+.zpm-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.zpm-label { font-size: 11px; color: var(--muted); font-weight: 600; }
+.zpm-name { font-size: 14px; font-weight: 800; }
+.zpm-fee { font-size: 16px; font-weight: 900; color: var(--primary-dark); }
+.zpm-opts { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.zpm-addr { font-size: 12px; color: var(--muted); margin-top: 8px; }
+.chk { display: flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 700; cursor: pointer; }
+.chk input { width: 16px; height: 16px; }
+.addr-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.addr-chip {
+    background: var(--cream); border: 1.5px solid var(--border); border-radius: 12px;
+    padding: 8px 12px; text-align: right; cursor: pointer;
+}
+.addr-chip strong { display: block; font-size: 13px; }
+.addr-chip span { font-size: 11.5px; color: var(--muted); }
+.held-bar {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    background: #fff7e0; border: 1px solid #fde68a; border-radius: 12px;
+    padding: 8px 12px; margin-bottom: 10px;
+}
+.held-label { font-size: 12px; font-weight: 800; color: #92400e; }
+.held-chip {
+    background: #fff; border: 1px solid #fde68a; border-radius: 20px;
+    padding: 5px 10px; font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px;
+}
+.held-chip i { color: var(--danger); }
+.fav-star {
+    position: absolute; top: 6px; left: 6px; z-index: 2;
+    width: 28px; height: 28px; border: none; border-radius: 50%;
+    background: rgba(255,255,255,.9); color: var(--muted); font-size: 14px;
+}
+.fav-star.on { color: var(--gold-dark); }
+.product-card { position: relative; }
+.cl-note { color: var(--warning); font-weight: 700; }
+.dl-pay-banner {
+    display: flex; align-items: center; gap: 12px; background: #eff6ff;
+    border: 1px solid #bfdbfe; border-radius: 12px; padding: 12px 14px; margin-bottom: 12px;
+}
+.dl-pay-banner i { font-size: 22px; color: var(--info); }
+.zone-card .zc-fee-big { font-size: 22px; font-weight: 900; color: var(--primary-dark); margin: 4px 0; }
+.zone-card.off { opacity: .55; }
+html.dark .zp-card, html.dark .held-chip, html.dark .addr-chip { background: #1a1512; border-color: var(--border); }
+html.dark .held-bar { background: #2a2114; border-color: #854d0e; }
+html.dark .dl-pay-banner { background: #152033; border-color: #1e3a5f; }

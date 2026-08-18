@@ -129,7 +129,7 @@
                     <i class="bi bi-safe"></i> الورديات
                 </div>
                 <div class="nav-item" data-page="payroll" data-perm="payroll" onclick="navigate('payroll')">
-                    <i class="bi bi-cash-stack"></i> الرواتب والهدر
+                    <i class="bi bi-cash-stack"></i> الرواتب والحضور
                 </div>
                 <div class="nav-item" data-page="reports" data-perm="reports" onclick="navigate('reports')">
                     <i class="bi bi-bar-chart-line"></i> التقارير
@@ -163,6 +163,9 @@
                     <div class="role cashier-role">المسمى</div>
                 </div>
             </div>
+            <button class="btn btn-light btn-block btn-sm" id="clockBtn" onclick="toggleMyClock()">
+                <i class="bi bi-fingerprint"></i> تسجيل حضور
+            </button>
             <button class="btn btn-light btn-block btn-sm" onclick="logout()">
                 <i class="bi bi-box-arrow-right"></i> تسجيل الخروج
             </button>
