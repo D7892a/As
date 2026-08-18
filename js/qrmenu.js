@@ -35,18 +35,21 @@ function renderQrBody() {
 
     const s = getSettings();
     const cats = getCategories();
+    const autoUrl = publicMenuUrl();
     box.innerHTML = `
         <div class="grid grid-2">
             <div class="card card-pad">
                 <div class="ss-title"><i class="bi bi-qr-code"></i> رمز QR للمنيو</div>
-                <p style="font-size:13px;color:var(--muted);margin-bottom:14px">اطبع هذا الرمز وضعه على الطاولات — يفتح الزبون المنيو من هاتفه مباشرة بدون تطبيق.</p>
+                <p style="font-size:13px;color:var(--muted);margin-bottom:14px">الرمز يفتح <strong>منيو الزبون الحقيقي</strong> — يتصفح القائمة ويطلب توصيل أو استلام بدون تسجيل دخول.</p>
                 <div class="qr-preview" id="qrBox"></div>
-                <div class="field" style="margin-top:14px"><label>رابط المنيو (اختياري — للنشر على الإنترنت)</label>
-                    <input class="input" id="qrLink" value="${s.menuUrl || ''}" placeholder="https://example.com/menu" oninput="drawMenuQr()">
+                <div class="field" style="margin-top:14px"><label>رابط المنيو (يُملأ تلقائياً — غيّره إن نشرت النظام على الإنترنت)</label>
+                    <input class="input" id="qrLink" value="${s.menuUrl || autoUrl}" placeholder="${autoUrl}" oninput="drawMenuQr()">
                 </div>
-                <div style="display:flex;gap:8px">
+                <div style="display:flex;gap:8px;flex-wrap:wrap">
+                    <button class="btn btn-primary" style="flex:1" onclick="openPortal('menu')"><i class="bi bi-phone"></i> فتح منيو الزبون</button>
                     <button class="btn btn-gold" style="flex:1" onclick="saveMenuUrl()"><i class="bi bi-save"></i> حفظ الرابط</button>
-                    <button class="btn btn-light" style="flex:1" onclick="printQrCard()"><i class="bi bi-printer"></i> طباعة بطاقة الطاولة</button>
+                    <button class="btn btn-light" style="flex:1" onclick="printQrCard()"><i class="bi bi-printer"></i> طباعة البطاقة</button>
+                    <button class="btn btn-light" style="flex:1" onclick="copyPortalLink('menu')"><i class="bi bi-clipboard"></i> نسخ الرابط</button>
                 </div>
             </div>
 
@@ -86,7 +89,7 @@ function renderQrBody() {
 function drawMenuQr() {
     const box = document.getElementById('qrBox');
     if (!box) return;
-    const url = (document.getElementById('qrLink')?.value || '').trim() || location.href;
+    const url = (document.getElementById('qrLink')?.value || '').trim() || publicMenuUrl();
     const enc = encodeURIComponent(url);
     box.innerHTML = `
         <img src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=10&data=${enc}"
@@ -99,7 +102,7 @@ function saveMenuUrl() {
 }
 function printQrCard() {
     const s = getSettings();
-    const url = (document.getElementById('qrLink')?.value || '').trim() || location.href;
+    const url = (document.getElementById('qrLink')?.value || '').trim() || publicMenuUrl();
     printElement(`<div style="text-align:center;padding:30px;font-family:Cairo,sans-serif">
         <div style="font-size:44px">${s.restaurantLogo ? `<img src="${s.restaurantLogo}" style="width:70px;height:70px;border-radius:14px;object-fit:cover">` : '🍽️'}</div>
         <h1 style="font-size:24px;margin:8px 0">${s.restaurantName}</h1>

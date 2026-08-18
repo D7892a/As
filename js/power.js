@@ -30,6 +30,8 @@ const COMMANDS = [
     { icon: 'bi-geo-alt', label: 'مناطق وأسعار التوصيل', hint: 'صفحة', perm: 'delivery', run: () => { navigate('delivery'); setTimeout(() => setDlTab('zones'), 150); } },
     { icon: 'bi-safe2', label: 'تسوية صندوق السائق', hint: 'صفحة', perm: 'delivery', run: () => { navigate('delivery'); setTimeout(() => setDlTab('settle'), 150); } },
     { icon: 'bi-qr-code', label: 'المنيو الرقمي والتقييمات', hint: 'صفحة', perm: 'qrmenu', run: () => navigate('qrmenu') },
+    { icon: 'bi-phone', label: 'فتح منيو الزبون', hint: 'بوابة', perm: 'qrmenu', run: () => openPortal('menu') },
+    { icon: 'bi-truck-flatbed', label: 'فتح تطبيق السائق', hint: 'بوابة', perm: 'delivery', run: () => openPortal('driver') },
     { icon: 'bi-bar-chart-line', label: 'التقارير', hint: 'صفحة', perm: 'reports', run: () => navigate('reports') },
     { icon: 'bi-safe', label: 'الورديات', hint: 'صفحة', perm: 'shifts', run: () => navigate('shifts') },
     { icon: 'bi-gear', label: 'الإعدادات', hint: 'صفحة', perm: 'settings', run: () => navigate('settings') },

@@ -57,7 +57,7 @@ function renderOrders() {
                             <td>${o.items.reduce((n, i) => n + i.qty, 0)} صنف</td>
                             <td><strong>${moneyNum(o.total)}</strong></td>
                             <td>${o.paymentMethod === 'cash' ? 'كاش' : o.paymentMethod === 'card' ? 'بطاقة' : 'إلكتروني'}</td>
-                            <td>${o.cashierName || '-'}</td>
+                            <td>${o.cashierName || '-'}${o.source === 'menu' ? '<div style="font-size:10.5px;color:var(--muted)">منيو الزبون</div>' : ''}</td>
                             <td style="font-size:12px;color:var(--muted)">${fmtDateTime(o.createdAt)}</td>
                             <td><span class="badge ${st.cls}"><i class="bi ${st.icon}"></i> ${st.label}</span></td>
                             <td>

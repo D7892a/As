@@ -247,18 +247,21 @@ function renderDriversTab(box) {
     };
     box.innerHTML = `
         <div class="toolbar">
+            <p style="font-size:13px;color:var(--muted);margin:0">رمز تطبيق السائق يُعطى للسائق ليدخل من <strong>?view=driver</strong> — حسين <b>2222</b> وكرار <b>3333</b>.</p>
             <div class="spacer"></div>
+            <button class="btn btn-light" onclick="openPortal('driver')"><i class="bi bi-phone"></i> فتح تطبيق السائق</button>
             <button class="btn btn-primary" data-perm="delivery" onclick="guard('delivery', () => openDriverForm())"><i class="bi bi-plus-lg"></i> سائق جديد</button>
         </div>
         <div class="card">
             <div class="table-wrap">
                 <table class="tbl">
-                    <thead><tr><th>السائق</th><th>الهاتف</th><th>المركبة</th><th>الرقم</th><th>طلبات مُسلّمة</th><th>إجمالي الأجور</th><th>كاش غير مسوّى</th><th>العمولة/طلب</th><th>الحالة</th><th>إجراءات</th></tr></thead>
+                    <thead><tr><th>السائق</th><th>الهاتف</th><th>رمز التطبيق</th><th>المركبة</th><th>الرقم</th><th>طلبات مُسلّمة</th><th>إجمالي الأجور</th><th>كاش غير مسوّى</th><th>العمولة/طلب</th><th>الحالة</th><th>إجراءات</th></tr></thead>
                     <tbody>${drivers.length ? drivers.map(d => {
                         const s = stats(d.id);
                         return `<tr>
                             <td><div class="cell-main"><div class="cell-thumb" style="background:linear-gradient(135deg,var(--info),#1e40af);color:#fff"><i class="bi bi-person-vcard"></i></div><strong>${d.name}</strong></div></td>
                             <td style="direction:ltr;text-align:right">${d.phone || '-'}</td>
+                            <td><span class="badge badge-dark" style="letter-spacing:2px">${d.pin || '0000'}</span></td>
                             <td>${d.vehicle}</td>
                             <td>${d.plate || '-'}</td>
                             <td><strong>${s.count}</strong></td>
@@ -271,7 +274,7 @@ function renderDriversTab(box) {
                                 <button class="icon-btn" style="width:32px;height:32px;font-size:14px;background:#fee2e2;color:#b91c1c;border-color:#fecaca" onclick="delDriver('${d.id}')"><i class="bi bi-trash"></i></button>
                             </div></td>
                         </tr>`;
-                    }).join('') : `<tr><td colspan="10"><div class="empty-state"><i class="bi bi-person-vcard"></i><p>لا يوجد سائقون</p></div></td></tr>`}</tbody>
+                    }).join('') : `<tr><td colspan="11"><div class="empty-state"><i class="bi bi-person-vcard"></i><p>لا يوجد سائقون</p></div></td></tr>`}</tbody>
                 </table>
             </div>
         </div>`;
@@ -294,10 +297,12 @@ function openDriverForm(id) {
         </div>
         <div class="row-flex">
             <div class="field" style="flex:1"><label>العمولة لكل طلب (د.ع)</label><input class="input" id="drComm" type="number" value="${d ? d.commission : (getSettings().driverCommission || 0)}"></div>
+            <div class="field" style="flex:1"><label>رمز تطبيق السائق (PIN)</label><input class="input" id="drPin" inputmode="numeric" value="${d ? (d.pin || '') : '0000'}" placeholder="2222"></div>
             <div class="field" style="flex:1"><label>الحالة</label>
                 <select class="input" id="drActive"><option value="1" ${!d || d.active !== false ? 'selected' : ''}>نشط</option><option value="0" ${d && d.active === false ? 'selected' : ''}>موقوف</option></select>
             </div>
         </div>
+        <p style="font-size:12.5px;color:var(--muted)">السائق يدخل من تطبيق السائق بهذا الرمز. الحسابات الجاهزة: حسين <strong>2222</strong> — كرار <strong>3333</strong>.</p>
     `, `<button class="btn btn-ghost" onclick="closeModal('dynModal')">إلغاء</button>
         <button class="btn btn-primary" style="flex:1" onclick="saveDriver('${id || ''}')"><i class="bi bi-check2"></i> حفظ</button>`);
 }

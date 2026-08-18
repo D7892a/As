@@ -56,6 +56,7 @@ function seedData() {
             enableHeldOrders: true,
             enableSplitPay: true,
             enableCod: true,           // تحصيل الكاش عند الباب
+            enableOnlineOrders: true,  // طلب من منيو الزبون
             tierBronze: 0,           // حدود مستويات الولاء (بالإنفاق)
             tierSilver: 150000,
             tierGold: 400000,
@@ -126,8 +127,8 @@ function seedData() {
 
         /* ============ البيانات الجديدة ============ */
         drivers: [
-            { id: 'dr1', name: 'حسين الدليفري', phone: '0770 900 1122', vehicle: 'دراجة نارية', plate: 'بغداد 12345', commission: 2000, active: true, createdAt: Date.now() },
-            { id: 'dr2', name: 'كرار التوصيل', phone: '0781 400 5566', vehicle: 'سيارة', plate: 'بغداد 67890', commission: 3000, active: true, createdAt: Date.now() }
+            { id: 'dr1', name: 'حسين الدليفري', phone: '0770 900 1122', vehicle: 'دراجة نارية', plate: 'بغداد 12345', commission: 2000, pin: '2222', active: true, createdAt: Date.now() },
+            { id: 'dr2', name: 'كرار التوصيل', phone: '0781 400 5566', vehicle: 'سيارة', plate: 'بغداد 67890', commission: 3000, pin: '3333', active: true, createdAt: Date.now() }
         ],
         zones: [
             { id: 'z1', name: 'الكرادة', fee: 3000, minutes: 20, active: true, color: '#c1272d' },
@@ -275,6 +276,13 @@ function migrateDB(db) {
     (db.zones || []).forEach(z => {
         if (z.active === undefined) z.active = true;
         if (!z.color) z.color = '#c1272d';
+    });
+    (db.drivers || []).forEach(d => {
+        if (!d.pin) {
+            if (d.id === 'dr1') d.pin = '2222';
+            else if (d.id === 'dr2') d.pin = '3333';
+            else d.pin = '0000';
+        }
     });
     const haveZ = new Set((db.zones || []).map(z => z.id));
     (fresh.zones || []).forEach(z => { if (!haveZ.has(z.id)) db.zones.push(JSON.parse(JSON.stringify(z))); });
@@ -622,7 +630,7 @@ const api = {
 
     /* ============ الدليفري والسائقون ============ */
     addDriver(data) {
-        const d = { id: uid('dr'), name: '', phone: '', vehicle: 'دراجة نارية', plate: '', commission: getSettings().driverCommission || 0, active: true, createdAt: Date.now(), ...data };
+        const d = { id: uid('dr'), name: '', phone: '', vehicle: 'دراجة نارية', plate: '', commission: getSettings().driverCommission || 0, pin: '0000', active: true, createdAt: Date.now(), ...data };
         DB.drivers.push(d); logActivity('delivery', `إضافة سائق: ${d.name}`); persist(); return d;
     },
     updateDriver(id, data) { const d = getDriver(id); if (!d) return; Object.assign(d, data); persist(); },

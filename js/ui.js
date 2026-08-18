@@ -238,6 +238,47 @@ function refreshClockBtn() {
     }
 }
 
+/* ----- روابط منيو الزبون وتطبيق السائق ----- */
+function portalUrl(view) {
+    try {
+        const u = new URL(location.href);
+        u.search = '';
+        u.hash = '';
+        if (view) u.searchParams.set('view', view);
+        return u.toString();
+    } catch (e) {
+        return view ? `index.html?view=${view}` : 'index.html';
+    }
+}
+function publicMenuUrl() {
+    const custom = (getSettings().menuUrl || '').trim();
+    return custom || portalUrl('menu');
+}
+function currentPortalView() {
+    const q = new URLSearchParams(location.search).get('view');
+    if (q === 'menu' || q === 'driver') return q;
+    if (location.hash === '#menu') return 'menu';
+    if (location.hash === '#driver') return 'driver';
+    return '';
+}
+function openPortal(view) {
+    location.href = portalUrl(view);
+}
+function copyPortalLink(view) {
+    const url = view === 'menu' ? publicMenuUrl() : portalUrl(view);
+    navigator.clipboard?.writeText(url).then(() => toast('تم نسخ الرابط', 'success'))
+        .catch(() => prompt('انسخ الرابط:', url));
+}
+function onPortalStorage(e) {
+    if (e.key && e.key !== DB_KEY) return;
+    try {
+        if (e.newValue) DB = migrateDB(JSON.parse(e.newValue));
+        else DB = loadDB();
+    } catch (err) { return; }
+    if (window._portal === 'menu') renderCustomerMenu();
+    if (window._portal === 'driver') renderDriverApp();
+}
+
 /* ----- تهيئة عامة بعد تحميل DOM ----- */
 document.addEventListener('DOMContentLoaded', () => {
     tickClock();

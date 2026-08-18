@@ -2,7 +2,7 @@
    Service Worker — تشغيل النظام بدون إنترنت
    ============================================ */
 
-const CACHE = 'iq-cashier-v3';
+const CACHE = 'iq-cashier-v4';
 const ASSETS = [
     './',
     './index.html',
@@ -13,7 +13,7 @@ const ASSETS = [
     './js/inventory.js', './js/users.js', './js/admin.js', './js/reports.js',
     './js/settings.js', './js/delivery.js', './js/reservations.js',
     './js/suppliers.js', './js/payroll.js', './js/dashboard.js',
-    './js/qrmenu.js', './js/power.js'
+    './js/qrmenu.js', './js/customer.js', './js/driverapp.js', './js/power.js'
 ];
 
 self.addEventListener('install', (e) => {

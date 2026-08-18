@@ -107,6 +107,12 @@ function renderSettings() {
                 <label class="switch"><input type="checkbox" id="setFeeOv" ${s.allowFeeOverride !== false ? 'checked' : ''}><span class="slider-sw"></span></label></div>
             <div class="toggle-row"><div class="tr-info"><h5>تحصيل الكاش عند الباب</h5><p>يظهر خيار COD على فاتورة التوصيل ويُحسب في تسوية السائق</p></div>
                 <label class="switch"><input type="checkbox" id="setCod" ${s.enableCod !== false ? 'checked' : ''}><span class="slider-sw"></span></label></div>
+            <div class="toggle-row"><div class="tr-info"><h5>طلب من منيو الزبون</h5><p>الزبون يطلب من <code>?view=menu</code> ويظهر الطلب في الكاشير والمطبخ</p></div>
+                <label class="switch"><input type="checkbox" id="setOnline" ${s.enableOnlineOrders !== false ? 'checked' : ''}><span class="slider-sw"></span></label></div>
+            <div class="row-flex" style="margin-top:8px">
+                <button class="btn btn-light" onclick="openPortal('menu')"><i class="bi bi-qr-code"></i> منيو الزبون</button>
+                <button class="btn btn-light" onclick="openPortal('driver')"><i class="bi bi-truck"></i> تطبيق السائق</button>
+            </div>
             <p style="font-size:12.5px;color:var(--muted)">💡 سعر كل منطقة يُضبط من صفحة «التوصيل ← مناطق وأسعار». الكاشير يختار المنطقة فيظهر الرقم تلقائياً.</p>
         </div>
 
@@ -240,6 +246,7 @@ function saveAllSettings() {
     s.requireDeliveryZone = chk('setReqZone', s.requireDeliveryZone);
     s.allowFeeOverride = chk('setFeeOv', s.allowFeeOverride);
     s.enableCod = chk('setCod', s.enableCod);
+    s.enableOnlineOrders = chk('setOnline', s.enableOnlineOrders);
     s.enableAttendance = chk('setAtt', s.enableAttendance);
     s.workStart = val('setWorkStart', s.workStart);
     s.workEnd = val('setWorkEnd', s.workEnd);
