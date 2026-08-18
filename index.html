@@ -52,9 +52,20 @@
             </div>
         </div>
         <p class="login-hint">نظام يعمل بالكامل على جهازك — بياناتك محفوظة محلياً 🔒<br>
-            الرمز الافتراضي: المدير <strong>1234</strong> • الكاشير <strong>1111</strong></p>
+            الرمز الافتراضي: المدير <strong>1234</strong> • الكاشير <strong>1111</strong><br>
+            السائق: حسين <strong>2222</strong> • كرار <strong>3333</strong></p>
+        <div class="login-portals">
+            <a href="?view=menu"><i class="bi bi-qr-code"></i> منيو الزبون</a>
+            <a href="?view=driver"><i class="bi bi-truck"></i> تطبيق السائق</a>
+        </div>
     </div>
 </div>
+
+<!-- ===== منيو الزبون ===== -->
+<div class="portal-shell" id="portalMenu" style="display:none"></div>
+
+<!-- ===== تطبيق السائق ===== -->
+<div class="portal-shell" id="portalDriver" style="display:none"></div>
 
 <!-- ===== التطبيق ===== -->
 <div class="app-shell" id="appShell" style="display:none">
@@ -383,6 +394,8 @@
 <script src="js/payroll.js"></script>
 <script src="js/dashboard.js"></script>
 <script src="js/qrmenu.js"></script>
+<script src="js/customer.js"></script>
+<script src="js/driverapp.js"></script>
 <script src="js/reports.js"></script>
 <script src="js/settings.js"></script>
 <script src="js/power.js"></script>
@@ -394,8 +407,11 @@
         });
     }
 
-    /* تهيئة الدخول */
+    /* تهيئة: منيو الزبون / تطبيق السائق / الكاشير */
     window.addEventListener('load', () => {
+        const view = currentPortalView();
+        if (view === 'menu') { bootCustomerMenu(); return; }
+        if (view === 'driver') { bootDriverApp(); return; }
         restoreSession();
         const badge = document.getElementById('offersBadge');
         if (badge) badge.textContent = getOffers().filter(isOfferLive).length;
