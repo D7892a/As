@@ -14,7 +14,7 @@ function renderAdmin() {
     const todayCount = getOrders().filter(o => o.createdAt >= today).length;
     const lateDeliveries = getDeliveries().filter(d => ['pending','assigned','onway'].includes(d.status) && Date.now() > Number(d.promisedAt || (d.createdAt + Number(getZone(d.zoneId)?.minutes || 30) * 60000)));
     const unassigned = getDeliveries().filter(d => d.status === 'pending').length;
-    const unsettledCash = getDeliveries().filter(d => d.collectionStatus === 'collected').reduce((sum,d)=>sum+Number(d.cashToCollect||0),0);
+    const unsettledCash = deliveryUnsettledCash();
     const unpaidPayroll = getPayroll().filter(p => !p.paid).reduce((sum,p)=>sum+Number(p.net||0),0);
     const heldCarts = getSuspendedCarts().length;
     const missingPayProfiles = getUsers().filter(u => !Number(u.salaryRate || 0)).length;
@@ -40,9 +40,12 @@ function renderAdmin() {
         { id: 'reservations', icon: 'bi-calendar-check', color: 'warn', title: 'تصفير الحجوزات', desc: `${getReservations().length} حجز`, btn: 'حذف الحجوزات', fn: 'dangerResetReservations()' },
         { id: 'purchases', icon: 'bi-receipt-cutoff', color: 'danger', title: 'تصفير المشتريات والذمم', desc: `${getPurchases().length} فاتورة شراء`, btn: 'حذف المشتريات', fn: 'dangerResetPurchases()' },
         { id: 'payroll', icon: 'bi-cash-stack', color: 'danger', title: 'تصفير كشوف الرواتب', desc: `${getPayroll().length} قيد راتب`, btn: 'حذف الرواتب', fn: 'dangerResetPayroll()' },
-        { id: 'attendance', icon: 'bi-fingerprint', color: 'warn', title: 'تصفير سجل الحضور', desc: `${getAttendance().length} سجل حضور وانصراف`, btn: 'حذف الحضور', fn: 'dangerResetAttendance()' },
+        { id: 'attendance', icon: 'bi-fingerprint', color: 'warn', title: 'تصفير سجل الحضور', desc: `${getAttendance().length} قيد حضور`, btn: 'حذف الحضور', fn: 'dangerResetAttendance()' },
         { id: 'wastes', icon: 'bi-trash3', color: 'warn', title: 'تصفير سجل الهدر', desc: `${getWastes().length} قيد هدر`, btn: 'حذف السجل', fn: 'dangerResetWastes()' },
         { id: 'feedback', icon: 'bi-chat-heart', color: 'warn', title: 'تصفير التقييمات', desc: `${getFeedback().length} تقييم`, btn: 'حذف التقييمات', fn: 'dangerResetFeedback()' },
+        { id: 'advances', icon: 'bi-piggy-bank', color: 'warn', title: 'تصفير السلف', desc: `${getAdvances().length} سلفة`, btn: 'حذف السلف', fn: 'dangerResetAdvances()' },
+        { id: 'held', icon: 'bi-pause-circle', color: 'warn', title: 'تصفير الطلبات المعلّقة', desc: `${getHeldOrders().length} طلب معلّق`, btn: 'حذف المعلّقة', fn: 'dangerResetHeld()' },
+        { id: 'settle', icon: 'bi-safe2', color: 'warn', title: 'تصفير تسويات السائقين', desc: `${getSettlements().length} تسوية`, btn: 'حذف التسويات', fn: 'dangerResetSettlements()' },
         { id: 'all', icon: 'bi-exclamation-octagon-fill', color: 'danger', title: 'إعادة ضبط المصنع', desc: 'حذف كل شيء والعودة لحالة النظام الأولى', btn: 'إعادة ضبط كاملة', fn: 'dangerFactoryReset()' }
     ];
 
@@ -63,7 +66,7 @@ function renderAdmin() {
                 <section><strong>سلامة التشغيل</strong><p>${riskCount ? `${riskCount} نقاط تحتاج متابعة` : 'جميع المؤشرات مستقرة'}</p><button class="btn btn-light btn-sm" onclick="runSystemDiagnostics()"><i class="bi bi-activity"></i> فحص النظام</button></section>
             </div>
             <div class="control-alert ${lateDeliveries.length ? 'is-danger' : ''}" onclick="navigate('delivery')"><i class="bi bi-stopwatch"></i><section><strong>${lateDeliveries.length}</strong><span>توصيلات متأخرة</span><small>${unassigned} بانتظار سائق</small></section><i class="bi bi-chevron-left"></i></div>
-            <div class="control-alert ${unsettledCash ? 'is-warning' : ''}" onclick="_dlTab='collections';navigate('delivery')"><i class="bi bi-cash-coin"></i><section><strong>${moneyNum(unsettledCash)}</strong><span>تحصيلات مع السائقين</span><small>بانتظار التسوية المالية</small></section><i class="bi bi-chevron-left"></i></div>
+            <div class="control-alert ${unsettledCash ? 'is-warning' : ''}" onclick="navigate('delivery');setTimeout(()=>setDlTab('settle'),150)"><i class="bi bi-cash-coin"></i><section><strong>${moneyNum(unsettledCash)}</strong><span>تحصيلات مع السائقين</span><small>بانتظار التسوية المالية</small></section><i class="bi bi-chevron-left"></i></div>
             <div class="control-alert ${unpaidPayroll ? 'is-warning' : ''}" onclick="navigate('payroll')"><i class="bi bi-people"></i><section><strong>${moneyNum(unpaidPayroll)}</strong><span>رواتب غير مصروفة</span><small>${missingPayProfiles} موظفين دون أجر محدد</small></section><i class="bi bi-chevron-left"></i></div>
             <div class="control-alert" onclick="navigate('pos')"><i class="bi bi-inboxes"></i><section><strong>${heldCarts}</strong><span>طلبات كاشير معلقة</span><small>${inactiveZones} مناطق توصيل موقوفة</small></section><i class="bi bi-chevron-left"></i></div>
         </div>
@@ -92,11 +95,13 @@ function renderAdmin() {
             </div>`;
         })()}
 
+        ${renderCashierPerf()}
+
         <div class="stats-grid">
             <div class="stat"><i class="bi bi-receipt stat-icon"></i><div class="stat-label">الطلبات</div><div class="stat-value">${getOrders().length}</div></div>
             <div class="stat gold"><i class="bi bi-grid stat-icon" style="color:rgba(212,175,55,.1)"></i><div class="stat-label">الوجبات</div><div class="stat-value">${getProducts().length}</div></div>
             <div class="stat green"><i class="bi bi-people stat-icon" style="color:rgba(22,163,74,.1)"></i><div class="stat-label">العملاء</div><div class="stat-value">${getCustomers().length}</div></div>
-            <div class="stat blue"><i class="bi bi-stars stat-icon" style="color:rgba(37,99,235,.1)"></i><div class="stat-label">العروض</div><div class="stat-value">${getOffers().length}</div></div>
+            <div class="stat blue"><i class="bi bi-geo-alt stat-icon" style="color:rgba(37,99,235,.1)"></i><div class="stat-label">مناطق التوصيل</div><div class="stat-value">${getZones().length}</div></div>
         </div>
 
         <div class="danger-grid">
@@ -152,7 +157,7 @@ function runSystemDiagnostics() {
         ['أسعار التوصيل', getZones().filter(z => z.active !== false).every(z => Number(z.fee) >= 0 && Number(z.minutes) > 0), `${getZones().filter(z=>z.active!==false).length} منطقة فعالة`],
         ['الوردية', !getSettings().enableShifts || !!getOpenShift(), getOpenShift() ? `مفتوحة بواسطة ${getOpenShift().userName}` : 'لا توجد وردية مفتوحة'],
         ['ملفات الرواتب', getUsers().every(u => Number(u.salaryRate || 0) > 0), `${getUsers().filter(u=>!Number(u.salaryRate||0)).length} دون أجر`],
-        ['تحصيل السائقين', !getDeliveries().some(d => d.collectionStatus === 'collected'), `${moneyNum(getDeliveries().filter(d=>d.collectionStatus==='collected').reduce((s,d)=>s+Number(d.cashToCollect||0),0))} غير مسوّى`],
+        ['تحصيل السائقين', !deliveryUnsettledCash(), `${moneyNum(deliveryUnsettledCash())} غير مسوّى`],
         ['النسخة التلقائية', !!getAutoBackupInfo(), getAutoBackupInfo() ? fmtDateTime(getAutoBackupInfo().at) : 'لم تنشأ بعد']
     ];
     openModalContent('نتيجة فحص النظام', `<div class="diagnostics-list">${checks.map(([name,ok,detail]) => `<div class="diagnostic-row ${ok?'ok':'warn'}"><i class="bi bi-${ok?'check-circle-fill':'exclamation-triangle-fill'}"></i><div><strong>${name}</strong><span>${detail}</span></div><b>${ok?'سليم':'يحتاج متابعة'}</b></div>`).join('')}</div>`, `<button class="btn btn-primary" style="flex:1" onclick="closeModal('dynModal')">تم</button>`, 'lg');
@@ -228,13 +233,39 @@ function dangerResetPayroll() {
     _danger('تصفير كشوف الرواتب', 'سيتم حذف جميع قيود الرواتب (المصروفات المسجّلة تبقى).', () => api.resetPayroll());
 }
 function dangerResetAttendance() {
-    _danger('تصفير سجل الحضور', 'سيتم حذف جميع سجلات الحضور والانصراف. كشوف الرواتب الحالية لن تتغير.', () => api.resetAttendance());
+    _danger('تصفير سجل الحضور', 'سيتم حذف جميع قيود الحضور والانصراف.', () => api.resetAttendance());
 }
 function dangerResetWastes() {
     _danger('تصفير سجل الهدر', 'سيتم حذف جميع قيود الهدر والتالف (المخزون لا يُعاد).', () => api.resetWastes());
 }
 function dangerResetFeedback() {
     _danger('تصفير التقييمات', 'سيتم حذف جميع تقييمات وآراء الزبائن.', () => api.resetFeedback());
+}
+function dangerResetAdvances() {
+    _danger('تصفير السلف', 'سيتم حذف جميع السلف المسجّلة.', () => api.resetAdvances());
+}
+function dangerResetHeld() {
+    _danger('تصفير الطلبات المعلّقة', 'سيتم حذف كل الطلبات المعلّقة في نقطة البيع.', () => api.resetHeldOrders());
+}
+function dangerResetSettlements() {
+    _danger('تصفير تسويات السائقين', 'سيتم حذف سجل تسويات الصندوق (الطلبات تبقى).', () => api.resetSettlements());
+}
+function renderCashierPerf() {
+    const start = new Date().setHours(0, 0, 0, 0);
+    const today = getOrders().filter(o => o.createdAt >= start && o.status !== 'cancelled');
+    const by = {};
+    today.forEach(o => {
+        const k = o.cashierName || '—';
+        if (!by[k]) by[k] = { n: 0, v: 0, disc: 0 };
+        by[k].n++; by[k].v += Number(o.total || 0); by[k].disc += Number(o.discount || 0);
+    });
+    const rows = Object.entries(by).sort((a, b) => b[1].v - a[1].v);
+    if (!rows.length) return '';
+    return `<div class="card card-pad" style="margin-bottom:18px">
+        <div class="ss-title"><i class="bi bi-person-workspace"></i> أداء الكاشير اليوم</div>
+        <div class="table-wrap"><table class="tbl"><thead><tr><th>الكاشير</th><th>الطلبات</th><th>المبيعات</th><th>الخصومات</th><th>متوسط الفاتورة</th></tr></thead>
+        <tbody>${rows.map(([n, v]) => `<tr><td><strong>${n}</strong></td><td>${v.n}</td><td>${moneyNum(v.v)}</td><td>${moneyNum(v.disc)}</td><td>${moneyNum(Math.round(v.v / v.n))}</td></tr>`).join('')}</tbody></table></div>
+    </div>`;
 }
 function dangerFactoryReset() {
     _danger('إعادة ضبط المصنع', '⚠️ سيتم مسح <strong>كل البيانات</strong> (طلبات، وجبات، عملاء، مستخدمين، إعدادات) والعودة للحالة الأولى.', () => {

@@ -99,11 +99,32 @@ function renderSettings() {
             <div class="row-flex">
                 <div class="field" style="flex:1"><label>أجرة التوصيل الافتراضية (د.ع)</label><input class="input" id="setDelFee" type="number" value="${s.defaultDeliveryFee || 0}"></div>
                 <div class="field" style="flex:1"><label>عمولة السائق لكل طلب (د.ع)</label><input class="input" id="setDrComm" type="number" value="${s.driverCommission || 0}"></div>
+                <div class="field" style="flex:1"><label>أجرة التوصيل السريع الإضافية</label><input class="input" id="setExpress" type="number" value="${s.expressFee || 0}"></div>
             </div>
-            <div class="toggle-row"><div class="tr-info"><h5>إلزام الكاشير باختيار المنطقة</h5><p>يمنع إكمال طلب توصيل دون تسعيرة منطقة محددة</p></div><label class="switch"><input type="checkbox" id="setRequireZone" ${s.requireDeliveryZone !== false ? 'checked' : ''}><span class="slider-sw"></span></label></div>
-            <div class="toggle-row"><div class="tr-info"><h5>إلزام العنوان التفصيلي</h5><p>يمنع ضياع الطلبات بسبب عنوان ناقص</p></div><label class="switch"><input type="checkbox" id="setRequireAddress" ${s.requireDeliveryAddress !== false ? 'checked' : ''}><span class="slider-sw"></span></label></div>
-            <div class="toggle-row"><div class="tr-info"><h5>التحصيل عند الاستلام</h5><p>يظهر للكاشير ويُنشئ عهدة نقدية على السائق حتى التسوية</p></div><label class="switch"><input type="checkbox" id="setEnableCOD" ${s.enableCashOnDelivery !== false ? 'checked' : ''}><span class="slider-sw"></span></label></div>
-            <p style="font-size:12.5px;color:var(--muted);margin-top:10px">💡 الأسعار والحد الأدنى والتوصيل المجاني تُضبط من «التوصيل ← مناطق وأسعار التوصيل» بصلاحية المدير فقط.</p>
+            <div class="toggle-row"><div class="tr-info"><h5>إلزام الكاشير باختيار المنطقة</h5><p>لا يُتمّ طلب التوصيل إلا بعد تحديد المنطقة وسعرها</p></div>
+                <label class="switch"><input type="checkbox" id="setReqZone" ${s.requireDeliveryZone !== false ? 'checked' : ''}><span class="slider-sw"></span></label></div>
+            <div class="toggle-row"><div class="tr-info"><h5>السماح بتعديل أجرة التوصيل يدوياً</h5><p>الكاشير يستطيع تغيير الرقم إذا اتفق على مبلغ مختلف</p></div>
+                <label class="switch"><input type="checkbox" id="setFeeOv" ${s.allowFeeOverride !== false ? 'checked' : ''}><span class="slider-sw"></span></label></div>
+            <div class="toggle-row"><div class="tr-info"><h5>تحصيل الكاش عند الباب</h5><p>يظهر خيار COD على فاتورة التوصيل ويُحسب في تسوية السائق</p></div>
+                <label class="switch"><input type="checkbox" id="setCod" ${s.enableCod !== false ? 'checked' : ''}><span class="slider-sw"></span></label></div>
+            <p style="font-size:12.5px;color:var(--muted)">💡 سعر كل منطقة يُضبط من صفحة «التوصيل ← مناطق وأسعار». الكاشير يختار المنطقة فيظهر الرقم تلقائياً.</p>
+        </div>
+
+        <div class="card card-pad settings-section">
+            <div class="ss-title"><i class="bi bi-fingerprint"></i> الحضور والرواتب والكاشير</div>
+            <div class="toggle-row"><div class="tr-info"><h5>تسجيل الحضور والانصراف</h5><p>زر في الشريط الجانبي + كشف يومي في قسم الرواتب</p></div>
+                <label class="switch"><input type="checkbox" id="setAtt" ${s.enableAttendance !== false ? 'checked' : ''}><span class="slider-sw"></span></label></div>
+            <div class="row-flex">
+                <div class="field" style="flex:1"><label>بداية الدوام</label><input class="input" id="setWorkStart" type="time" value="${s.workStart || '09:00'}"></div>
+                <div class="field" style="flex:1"><label>نهاية الدوام</label><input class="input" id="setWorkEnd" type="time" value="${s.workEnd || '23:00'}"></div>
+                <div class="field" style="flex:1"><label>التأخير بعد (دقيقة)</label><input class="input" id="setLate" type="number" value="${s.lateAfterMinutes || 15}"></div>
+            </div>
+            <div class="toggle-row"><div class="tr-info"><h5>تعليق الطلبات في نقطة البيع</h5><p>الكاشير يوقف الطلب ويسترجعه لاحقاً</p></div>
+                <label class="switch"><input type="checkbox" id="setHeld" ${s.enableHeldOrders !== false ? 'checked' : ''}><span class="slider-sw"></span></label></div>
+            <div class="toggle-row"><div class="tr-info"><h5>تقسيم الدفع (كاش + بطاقة)</h5></div>
+                <label class="switch"><input type="checkbox" id="setSplit" ${s.enableSplitPay !== false ? 'checked' : ''}><span class="slider-sw"></span></label></div>
+            <div class="toggle-row"><div class="tr-info"><h5>الإكراميات</h5></div>
+                <label class="switch"><input type="checkbox" id="setTips" ${s.enableTips !== false ? 'checked' : ''}><span class="slider-sw"></span></label></div>
         </div>
 
         <div class="card card-pad settings-section">
@@ -215,9 +236,17 @@ function saveAllSettings() {
     s.enableWaste = chk('setEnableWaste', s.enableWaste);
     s.defaultDeliveryFee = Number(val('setDelFee', s.defaultDeliveryFee)) || 0;
     s.driverCommission = Number(val('setDrComm', s.driverCommission)) || 0;
-    s.requireDeliveryZone = chk('setRequireZone', s.requireDeliveryZone);
-    s.requireDeliveryAddress = chk('setRequireAddress', s.requireDeliveryAddress);
-    s.enableCashOnDelivery = chk('setEnableCOD', s.enableCashOnDelivery);
+    s.expressFee = Number(val('setExpress', s.expressFee)) || 0;
+    s.requireDeliveryZone = chk('setReqZone', s.requireDeliveryZone);
+    s.allowFeeOverride = chk('setFeeOv', s.allowFeeOverride);
+    s.enableCod = chk('setCod', s.enableCod);
+    s.enableAttendance = chk('setAtt', s.enableAttendance);
+    s.workStart = val('setWorkStart', s.workStart);
+    s.workEnd = val('setWorkEnd', s.workEnd);
+    s.lateAfterMinutes = Number(val('setLate', s.lateAfterMinutes)) || 15;
+    s.enableHeldOrders = chk('setHeld', s.enableHeldOrders);
+    s.enableSplitPay = chk('setSplit', s.enableSplitPay);
+    s.enableTips = chk('setTips', s.enableTips);
     s.tierSilver = Number(val('setTierSilver', s.tierSilver)) || 0;
     s.tierGold = Number(val('setTierGold', s.tierGold)) || 0;
     s.tierVip = Number(val('setTierVip', s.tierVip)) || 0;
@@ -270,7 +299,7 @@ function resetSystem() {
    الطباعة — إيصال POS + تقارير PDF
    ============================================ */
 
-const PAY_LABEL = { cash: 'كاش', card: 'بطاقة', online: 'إلكتروني', split: 'مختلط', cod: 'تحصيل عند الاستلام' };
+const PAY_LABEL = { cash: 'كاش', card: 'بطاقة', online: 'إلكتروني', split: 'مقسّم' };
 
 /* إيصال POS مفصّل ورهيب */
 function showReceipt(orderId) {
@@ -306,28 +335,27 @@ function showReceipt(orderId) {
                 <div><span>العميل:</span><strong>${o.customerName}</strong></div>
                 ${o.customerPhone !== '-' ? `<div><span>الهاتف:</span><strong style="direction:ltr">${o.customerPhone}</strong></div>` : ''}
                 <div><span>النوع:</span><strong>${o.orderTypeLabel}</strong></div>
-                ${o.zoneId ? `<div><span>منطقة التوصيل:</span><strong>${getZone(o.zoneId)?.name || '—'}</strong></div>` : ''}
-                ${o.address ? `<div><span>العنوان:</span><strong>${o.address}</strong></div>` : ''}
                 ${o.tableName ? `<div><span>الطاولة:</span><strong>${o.tableName}</strong></div>` : ''}
+                ${o.zoneName || o.zoneId ? `<div><span>منطقة التوصيل:</span><strong>${o.zoneName || getZone(o.zoneId)?.name || '-'}</strong></div>` : ''}
+                ${o.address ? `<div><span>العنوان:</span><strong>${o.address}</strong></div>` : ''}
+                ${o.express ? `<div><span>التوصيل:</span><strong>سريع ⚡</strong></div>` : ''}
                 <div><span>الكاشير:</span><strong>${o.cashierName || '-'}</strong></div>
-                <div><span>الدفع:</span><strong>${PAY_LABEL[o.paymentMethod] || 'كاش'}</strong></div>
+                <div><span>الدفع:</span><strong>${PAY_LABEL[o.paymentMethod] || (o.paymentMethod === 'split' ? 'مقسّم' : 'كاش')}</strong></div>
             </div>
             <div class="receipt-items">${itemsHtml}</div>
             <div class="receipt-totals">
                 <div class="rt-row"><span>المجموع الفرعي</span><span>${moneyNum(o.subtotal)}</span></div>
                 ${o.tax ? `<div class="rt-row"><span>الضريبة</span><span>${moneyNum(o.tax)}</span></div>` : ''}
                 ${o.service ? `<div class="rt-row"><span>رسوم خدمة</span><span>${moneyNum(o.service)}</span></div>` : ''}
-                ${o.deliveryFee ? `<div class="rt-row"><span>أجرة التوصيل</span><span>${moneyNum(o.deliveryFee)}</span></div>` : ''}
                 ${o.discount ? `<div class="rt-row"><span>الخصم</span><span style="color:#16a34a">− ${moneyNum(o.discount)}</span></div>` : ''}
                 <div class="rt-row rt-grand"><span>الإجمالي</span><span>${moneyNum(o.total)}</span></div>
-                ${o.paymentMethod === 'split' ? `<div class="rt-row"><span>تفصيل الدفع</span><span>${(o.payments || []).map(p => `${PAY_LABEL[p.method]}: ${moneyNum(p.amount)}`).join(' + ')}</span></div>` : ''}
-                ${o.paymentMethod === 'cod' ? `<div class="rt-row"><span>التحصيل</span><span>مطلوب عند الاستلام</span></div>` : ''}
                 ${o.paymentMethod === 'cash' ? `
                     <div class="rt-row"><span>المدفوع</span><span>${moneyNum(o.paid)}</span></div>
                     <div class="rt-row"><span>الباقي</span><span style="color:#16a34a">${moneyNum(o.change)}</span></div>
                 ` : ''}
             </div>
             ${o.notes ? `<div style="margin-top:10px;padding:8px;border:1px dashed #999;border-radius:6px;font-size:11.5px"><strong>ملاحظات:</strong> ${o.notes}</div>` : ''}
+            ${(o.items || []).some(i => i.note) ? `<div style="margin-top:8px;font-size:11px">${o.items.filter(i => i.note).map(i => `• ${i.name}: ${i.note}`).join('<br>')}</div>` : ''}
             <div class="receipt-foot">
                 <div style="font-weight:800;font-size:14px;color:#000;margin-bottom:4px">شكراً لكم 🌹</div>
                 <p>${s.receiptFooter}</p>
@@ -577,7 +605,7 @@ function exportFullReportPDF() {
         <tbody>${top.map((p, i) => `<tr><td>${i + 1}</td><td>${p.name}</td><td>${p.qty}</td><td>${moneyNum(p.revenue)}</td></tr>`).join('') || '<tr><td colspan="4">لا توجد مبيعات</td></tr>'}</tbody></table>
         <div class="rpd-title">ملخص طرق الدفع</div>
         <table><thead><tr><th>الطريقة</th><th>العدد</th><th>القيمة</th></tr></thead>
-        <tbody>${['cash', 'card', 'online', 'split', 'cod'].map(m => {
+        <tbody>${['cash', 'card', 'online'].map(m => {
             const list = orders.filter(o => o.paymentMethod === m);
             return `<tr><td>${PAY_LABEL[m]}</td><td>${list.length}</td><td>${moneyNum(list.reduce((s,o)=>s+o.total,0))}</td></tr>`;
         }).join('')}</tbody></table>`;

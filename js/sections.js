@@ -53,10 +53,10 @@ function renderOrders() {
                         return `<tr>
                             <td><strong style="color:var(--primary-dark)">#${o.number}</strong></td>
                             <td>${o.customerName}${o.customerPhone !== '-' ? `<div style="font-size:11px;color:var(--muted)">${o.customerPhone}</div>` : ''}</td>
-                            <td><span class="badge badge-dark"><i class="bi ${ORDER_TYPES[o.orderType]?.icon || 'bi-bag'}"></i> ${o.orderTypeLabel}</span></td>
+                            <td><span class="badge badge-dark"><i class="bi ${ORDER_TYPES[o.orderType]?.icon || 'bi-bag'}"></i> ${o.orderTypeLabel}${o.zoneName ? ' • ' + o.zoneName : ''}</span></td>
                             <td>${o.items.reduce((n, i) => n + i.qty, 0)} صنف</td>
                             <td><strong>${moneyNum(o.total)}</strong></td>
-                            <td>${PAY_LABEL[o.paymentMethod] || o.paymentMethod}</td>
+                            <td>${o.paymentMethod === 'cash' ? 'كاش' : o.paymentMethod === 'card' ? 'بطاقة' : 'إلكتروني'}</td>
                             <td>${o.cashierName || '-'}</td>
                             <td style="font-size:12px;color:var(--muted)">${fmtDateTime(o.createdAt)}</td>
                             <td><span class="badge ${st.cls}"><i class="bi ${st.icon}"></i> ${st.label}</span></td>
@@ -110,13 +110,17 @@ function viewOrder(id) {
             <table class="tbl"><thead><tr><th>الصنف</th><th>السعر</th><th>الكمية</th><th>الإجمالي</th></tr></thead>
             <tbody>${items}</tbody></table>
         </div>
-        ${o.orderType === 'delivery' ? `<div class="delivery-payment-details" style="margin-top:12px"><strong><i class="bi bi-geo-alt"></i> ${getZone(o.zoneId)?.name || 'منطقة غير محددة'}</strong><div style="font-size:12px;margin-top:5px">${o.address || 'لا يوجد عنوان'} • ${o.customerPhone || 'لا يوجد هاتف'}</div></div>` : ''}
-        ${o.notes ? `<div style="margin-top:12px;padding:10px;background:var(--cream);border-radius:10px;font-size:13px"><strong>ملاحظات:</strong> ${o.notes}</div>` : ''}
+            ${o.notes ? `<div style="margin-top:12px;padding:10px;background:var(--cream);border-radius:10px;font-size:13px"><strong>ملاحظات:</strong> ${o.notes}</div>` : ''}
+            ${o.orderType === 'delivery' ? `<div style="margin-top:12px;padding:10px;background:var(--cream);border-radius:10px;font-size:13px">
+                <strong><i class="bi bi-geo-alt"></i> التوصيل:</strong> ${o.zoneName || getZone(o.zoneId)?.name || 'بدون منطقة'}
+                ${o.address ? ' — ' + o.address : ''} • أجرة ${moneyNum(o.deliveryFee || 0)}${o.express ? ' • سريع ⚡' : ''}
+            </div>` : ''}
         <div style="margin-top:14px">
             <div class="totals-row"><span>المجموع الفرعي</span><span>${moneyNum(o.subtotal)}</span></div>
             ${o.tax ? `<div class="totals-row"><span>الضريبة</span><span>${moneyNum(o.tax)}</span></div>` : ''}
             ${o.service ? `<div class="totals-row"><span>رسوم خدمة</span><span>${moneyNum(o.service)}</span></div>` : ''}
-            ${o.deliveryFee ? `<div class="totals-row"><span>أجرة التوصيل</span><span>${moneyNum(o.deliveryFee)}</span></div>` : ''}
+            ${o.deliveryFee ? `<div class="totals-row"><span>أجرة التوصيل${o.zoneName ? ' — ' + o.zoneName : ''}</span><span>${moneyNum(o.deliveryFee)}</span></div>` : ''}
+            ${o.tip ? `<div class="totals-row"><span>إكرامية</span><span>${moneyNum(o.tip)}</span></div>` : ''}
             ${o.discount ? `<div class="totals-row discount"><span>الخصم</span><span>− ${moneyNum(o.discount)}</span></div>` : ''}
             <div class="totals-row grand"><span>الإجمالي</span><span>${moneyNum(o.total)}</span></div>
         </div>
@@ -357,7 +361,7 @@ function renderSales() {
                         <td style="font-size:12.5px">${fmtDateTime(o.createdAt)}</td>
                         <td>${o.customerName}</td>
                         <td><span class="badge badge-dark">${o.orderTypeLabel}</span></td>
-                        <td>${PAY_LABEL[o.paymentMethod] || o.paymentMethod}</td>
+                        <td>${o.paymentMethod === 'cash' ? 'كاش' : o.paymentMethod === 'card' ? 'بطاقة' : 'إلكتروني'}</td>
                         <td>${o.discount ? '<span style="color:var(--success)">− ' + moneyNum(o.discount) + '</span>' : '—'}</td>
                         <td><strong style="color:var(--primary-dark)">${moneyNum(o.total)}</strong></td>
                     </tr>`).join('') : `<tr><td colspan="7"><div class="empty-state"><i class="bi bi-inbox"></i><p>لا توجد مبيعات في هذه الفترة</p></div></td></tr>`}
@@ -458,6 +462,19 @@ function openCustomerForm(id) {
         <div class="field"><label>الاسم *</label><input class="input" id="cufName" value="${c ? c.name : ''}" placeholder="اسم العميل"></div>
         <div class="field"><label>رقم الهاتف</label><input class="input" id="cufPhone" type="tel" value="${c && c.phone !== '-' ? c.phone : ''}" placeholder="0770 000 0000" style="direction:ltr;text-align:right"></div>
         ${getSettings().enablePoints ? `<div class="field"><label>نقاط الولاء</label><input class="input" id="cufPoints" type="number" value="${c ? c.points : 0}"></div>` : ''}
+        <div class="field"><label>عناوين التوصيل المحفوظة</label>
+            <div id="cufAddrs">${(c?.addresses || []).map((a, i) => `
+                <div class="row-flex" style="margin-bottom:8px">
+                    <input class="input" data-ak="label" data-i="${i}" value="${a.label || ''}" placeholder="البيت / المكتب">
+                    <select class="input" data-ak="zoneId" data-i="${i}">
+                        <option value="">منطقة</option>
+                        ${getActiveZones().map(z => `<option value="${z.id}" ${a.zoneId === z.id ? 'selected' : ''}>${z.name} — ${moneyNum(z.fee)}</option>`).join('')}
+                    </select>
+                    <input class="input" data-ak="address" data-i="${i}" value="${a.address || ''}" placeholder="العنوان التفصيلي" style="flex:2">
+                </div>`).join('') || '<p style="font-size:12px;color:var(--muted)">لا عناوين بعد — تُحفظ تلقائياً من طلبات التوصيل</p>'}
+            </div>
+            ${c && c.id !== 'cu1' ? `<button type="button" class="btn btn-light btn-sm" onclick="addBlankAddr()"><i class="bi bi-plus"></i> عنوان</button>` : ''}
+        </div>
     `, `<button class="btn btn-ghost" onclick="closeModal('dynModal')">إلغاء</button>
         <button class="btn btn-primary" onclick="saveCustomer('${id || ''}')" style="flex:1"><i class="bi bi-check2"></i> حفظ</button>`);
 }
@@ -469,6 +486,18 @@ function saveCustomer(id) {
     if (id) api.updateCustomer(id, data); else api.addCustomer(data);
     closeModal('dynModal'); renderCustomers();
     toast(id ? 'تم تحديث العميل' : 'تمت إضافة العميل', 'success');
+}
+function addBlankAddr() {
+    const box = document.getElementById('cufAddrs');
+    if (!box) return;
+    const i = box.querySelectorAll('[data-i]').length ? Math.max(...[...box.querySelectorAll('[data-i]')].map(e => Number(e.dataset.i))) + 1 : 0;
+    const row = document.createElement('div');
+    row.className = 'row-flex';
+    row.style.marginBottom = '8px';
+    row.innerHTML = `<input class="input" data-ak="label" data-i="${i}" placeholder="البيت / المكتب">
+        <select class="input" data-ak="zoneId" data-i="${i}"><option value="">منطقة</option>${getActiveZones().map(z => `<option value="${z.id}">${z.name} — ${moneyNum(z.fee)}</option>`).join('')}</select>
+        <input class="input" data-ak="address" data-i="${i}" placeholder="العنوان التفصيلي" style="flex:2">`;
+    box.appendChild(row);
 }
 function delCustomer(id) {
     if (!confirmAction('حذف هذا العميل؟')) return;

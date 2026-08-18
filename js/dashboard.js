@@ -74,12 +74,19 @@ function renderDashboard() {
     if (lowStock.length) alerts.push({ t: 'danger', i: 'bi-box-seam', m: `${lowStock.length} صنف قارب على النفاد أو نفد`, a: `navigate('inventory')` });
     if (lateDeliveries) alerts.push({ t: 'danger', i: 'bi-stopwatch', m: `${lateDeliveries} توصيل متأخر عن الموعد المتوقع`, a: `_dlTab='orders';navigate('delivery')` });
     else if (activeDeliveries) alerts.push({ t: 'info', i: 'bi-truck', m: `${activeDeliveries} طلب توصيل جارٍ الآن`, a: `navigate('delivery')` });
-    if (unsettledCash && can('delivery.settlement')) alerts.push({ t: 'warn', i: 'bi-cash-coin', m: `تحصيلات سائقين غير مسوّاة: ${moneyNum(unsettledCash)}`, a: `_dlTab='collections';navigate('delivery')` });
+    if (unsettledCash && (can('delivery.settlement') || can('delivery'))) alerts.push({ t: 'warn', i: 'bi-cash-coin', m: `تحصيلات سائقين غير مسوّاة: ${moneyNum(unsettledCash)}`, a: `navigate('delivery');setTimeout(()=>setDlTab('settle'),150)` });
     if (heldCarts && can('pos')) alerts.push({ t: 'info', i: 'bi-inboxes', m: `${heldCarts} طلب كاشير معلّق بانتظار الاسترجاع`, a: `navigate('pos');setTimeout(openSuspendedCarts,100)` });
     if (unpaidPayroll && can('payroll')) alerts.push({ t: 'warn', i: 'bi-people', m: `مستحقات موظفين غير مصروفة: ${moneyNum(unpaidPayroll)}`, a: `navigate('payroll')` });
     if (todayRes) alerts.push({ t: 'info', i: 'bi-calendar-check', m: `${todayRes} حجز مؤكد لهذا اليوم`, a: `navigate('reservations')` });
     const debts = getSuppliers().reduce((s, x) => s + Number(x.balance || 0), 0);
     if (debts) alerts.push({ t: 'warn', i: 'bi-wallet', m: `ذمم مستحقة للموردين: ${moneyNum(debts)}`, a: `navigate('suppliers')` });
+    const u = currentUser();
+    if (u && getSettings().enableAttendance) {
+        const rec = todayAttendance(u.id);
+        if (!rec || !rec.inAt) alerts.push({ t: 'warn', i: 'bi-fingerprint', m: 'لم تسجّل حضورك اليوم', a: `toggleMyClock()` });
+    }
+    const unsettle = getDeliveries().filter(d => d.status === 'delivered' && !d.settled).length;
+    if (unsettle) alerts.push({ t: 'warn', i: 'bi-safe2', m: `${unsettle} طلب توصيل بانتظار تسوية السائق`, a: `navigate('delivery');setTimeout(()=>setDlTab('settle'),200)` });
 
     wrap.innerHTML = `
         <div class="dash-hero">
@@ -158,6 +165,7 @@ function renderDashboard() {
                     ${kpiRow('bi-calendar-check', 'حجوزات اليوم', todayRes, Math.min(100, todayRes * 20))}
                     ${kpiRow('bi-box-seam', 'أصناف تحتاج تزويد', lowStock.length, Math.min(100, lowStock.length * 10))}
                     ${kpiRow('bi-safe', 'حالة الوردية', openShift ? 'مفتوحة' : 'مغلقة', openShift ? 100 : 0)}
+                    ${kpiRow('bi-fingerprint', 'حضور اليوم', `${getAttendance().filter(a => a.date === todayKey()).length} / ${getUsers().filter(u => u.active !== false).length}`, Math.round(getAttendance().filter(a => a.date === todayKey()).length / Math.max(1, getUsers().filter(u => u.active !== false).length) * 100))}
                 </div>
                 ${lowStock.length ? `<div class="low-stock-list">
                     <div class="ss-title" style="margin-top:12px"><i class="bi bi-exclamation-triangle"></i> تحتاج تزويد عاجل</div>

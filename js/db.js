@@ -45,10 +45,17 @@ function seedData() {
             enableFeedback: true,    // تفعيل تقييمات العملاء
             defaultDeliveryFee: 3000,// أجرة توصيل افتراضية
             driverCommission: 2000,  // عمولة السائق لكل طلب
-            requireDeliveryZone: true, // لا يسمح للكاشير بإكمال التوصيل بلا منطقة
-            requireDeliveryAddress: true,
-            enableCashOnDelivery: true,// التحصيل عند التسليم والتسوية مع السائق
-            maxDeliveryDiscount: 0,   // حد خصم أجرة التوصيل (0 = لا خصم للكاشير)
+            requireDeliveryZone: true, // إلزام الكاشير باختيار المنطقة
+            allowFeeOverride: true,    // السماح بتعديل أجرة التوصيل يدوياً
+            expressFee: 2000,          // أجرة إضافية للتوصيل السريع
+            enableAttendance: true,    // تسجيل حضور وانصراف الموظفين
+            workStart: '09:00',
+            workEnd: '23:00',
+            lateAfterMinutes: 15,
+            enableTips: true,
+            enableHeldOrders: true,
+            enableSplitPay: true,
+            enableCod: true,           // تحصيل الكاش عند الباب
             tierBronze: 0,           // حدود مستويات الولاء (بالإنفاق)
             tierSilver: 150000,
             tierGold: 400000,
@@ -58,8 +65,8 @@ function seedData() {
             tierDiscountVip: 10
         },
         users: [
-            { id: 'u_admin', name: 'مدير النظام', role: 'admin', pin: '1234', avatar: '👑', jobTitle: 'المدير العام', active: true, perms: {}, payCycle: 'monthly', salaryRate: 1500000, shiftHours: 8, createdAt: Date.now() },
-            { id: 'u_cashier', name: 'أحمد الكاشير', role: 'cashier', pin: '1111', avatar: '🧑‍🍳', jobTitle: 'كاشير رئيسي', active: true, perms: {}, payCycle: 'monthly', salaryRate: 800000, shiftHours: 8, createdAt: Date.now() }
+            { id: 'u_admin', name: 'مدير النظام', role: 'admin', pin: '1234', avatar: '👑', jobTitle: 'المدير العام', salary: 2000000, payCycle: 'monthly', workDays: [0,1,2,3,4,5,6], hireDate: '2024-01-01', active: true, perms: {}, createdAt: Date.now() },
+            { id: 'u_cashier', name: 'أحمد الكاشير', role: 'cashier', pin: '1111', avatar: '🧑‍🍳', jobTitle: 'كاشير رئيسي', salary: 600000, payCycle: 'monthly', workDays: [0,1,2,3,4,5,6], hireDate: '2024-06-01', active: true, perms: {}, createdAt: Date.now() }
         ],
         categories: [
             { id: 'c1', name: 'المشاوي العراقية', icon: '🍢', color: '#c1272d' },
@@ -92,10 +99,10 @@ function seedData() {
             { id: 'p20', name: 'صمون', price: 500, categoryId: 'c6', image: '', emoji: '🥖', description: 'خبز صمون طازج', available: true }
         ],
         customers: [
-            { id: 'cu1', name: 'عميل نقدي', phone: '-', points: 0, createdAt: Date.now() },
-            { id: 'cu0', name: 'محمد عبد الله', phone: '0780 111 2222', points: 120, createdAt: Date.now() },
-            { id: 'cu2', name: 'زينب حسن', phone: '0771 333 4444', points: 85, createdAt: Date.now() },
-            { id: 'cu3', name: 'علي كاظم', phone: '0790 555 6666', points: 240, createdAt: Date.now() }
+            { id: 'cu1', name: 'عميل نقدي', phone: '-', points: 0, addresses: [], createdAt: Date.now() },
+            { id: 'cu0', name: 'محمد عبد الله', phone: '0780 111 2222', points: 120, addresses: [{ id: 'ad0', label: 'البيت', zoneId: 'z1', address: 'الكرادة داخل — شارع أبو نؤاس، دار 14' }], createdAt: Date.now() },
+            { id: 'cu2', name: 'زينب حسن', phone: '0771 333 4444', points: 85, addresses: [{ id: 'ad2', label: 'المنزل', zoneId: 'z2', address: 'الجادرية — قرب جامعة بغداد' }], createdAt: Date.now() },
+            { id: 'cu3', name: 'علي كاظم', phone: '0790 555 6666', points: 240, addresses: [{ id: 'ad3', label: 'المكتب', zoneId: 'z3', address: 'المنصور — شارع 14 رمضان' }], createdAt: Date.now() }
         ],
         orders: [],
         offers: [
@@ -123,14 +130,22 @@ function seedData() {
             { id: 'dr2', name: 'كرار التوصيل', phone: '0781 400 5566', vehicle: 'سيارة', plate: 'بغداد 67890', commission: 3000, active: true, createdAt: Date.now() }
         ],
         zones: [
-            { id: 'z1', name: 'الكرادة', fee: 3000, minutes: 20, minimumOrder: 10000, freeAbove: 50000, active: true, color: '#2563eb' },
-            { id: 'z2', name: 'الجادرية', fee: 4000, minutes: 25, minimumOrder: 10000, freeAbove: 60000, active: true, color: '#7c3aed' },
-            { id: 'z3', name: 'المنصور', fee: 5000, minutes: 35, minimumOrder: 15000, freeAbove: 75000, active: true, color: '#d97706' },
-            { id: 'z4', name: 'الأعظمية', fee: 6000, minutes: 45, minimumOrder: 15000, freeAbove: 90000, active: true, color: '#c1272d' }
+            { id: 'z1', name: 'الكرادة', fee: 3000, minutes: 20, active: true, color: '#c1272d' },
+            { id: 'z2', name: 'الجادرية', fee: 4000, minutes: 25, active: true, color: '#2563eb' },
+            { id: 'z3', name: 'المنصور', fee: 5000, minutes: 35, active: true, color: '#1a5d3a' },
+            { id: 'z4', name: 'الأعظمية', fee: 6000, minutes: 45, active: true, color: '#7c3aed' },
+            { id: 'z5', name: 'الكاظمية', fee: 6000, minutes: 40, active: true, color: '#0f766e' },
+            { id: 'z6', name: 'الدورة', fee: 5000, minutes: 35, active: true, color: '#b45309' },
+            { id: 'z7', name: 'الشعب', fee: 5500, minutes: 40, active: true, color: '#be185d' },
+            { id: 'z8', name: 'بغداد الجديدة', fee: 4500, minutes: 30, active: true, color: '#0369a1' },
+            { id: 'z9', name: 'زيونة', fee: 3500, minutes: 25, active: true, color: '#ca8a04' },
+            { id: 'z10', name: 'الحارثية', fee: 4500, minutes: 30, active: true, color: '#4338ca' },
+            { id: 'z11', name: 'السيدية', fee: 5000, minutes: 35, active: true, color: '#15803d' },
+            { id: 'z12', name: 'العامرية', fee: 7000, minutes: 50, active: true, color: '#9f1239' },
+            { id: 'z13', name: 'البياع', fee: 4500, minutes: 30, active: true, color: '#854d0e' },
+            { id: 'z14', name: 'باب المعظم', fee: 4000, minutes: 30, active: true, color: '#1e3a8a' }
         ],
         deliveries: [],
-        driverSettlements: [],
-        suspendedCarts: [],
         reservations: [],
         suppliers: [
             { id: 'sp1', name: 'شركة اللحوم الذهبية', phone: '0770 222 3333', contact: 'أبو علي', category: 'لحوم', balance: 0, note: '', active: true, createdAt: Date.now() },
@@ -139,11 +154,13 @@ function seedData() {
         ],
         purchases: [],
         payroll: [],
-        attendance: [],
-        salaryAdvances: [],
         recipes: {},
         wastes: [],
         feedback: [],
+        attendance: [],
+        advances: [],
+        heldOrders: [],
+        settlements: [],
         orderCounter: 1000,
         meta: { createdAt: Date.now() }
     };
@@ -156,6 +173,12 @@ function generateSeedOrders() {
     const custPhones = { cu0: '0780 111 2222', cu2: '0771 333 4444', cu3: '0790 555 6666', cu1: '-' };
     const types = ['dine', 'dine', 'take', 'delivery', 'take'];
     const typeLabels = { dine: 'صالة', take: 'سفري', delivery: 'توصيل' };
+    const seedZones = [
+        { id: 'z1', name: 'الكرادة', fee: 3000 },
+        { id: 'z2', name: 'الجادرية', fee: 4000 },
+        { id: 'z3', name: 'المنصور', fee: 5000 },
+        { id: 'z9', name: 'زيونة', fee: 3500 }
+    ];
     const pays = ['cash', 'cash', 'cash', 'card', 'online'];
     const payLabel = { cash: 'كاش', card: 'بطاقة', online: 'إلكتروني' };
     const menus = [
@@ -186,13 +209,22 @@ function generateSeedOrders() {
             const min = Math.floor(Math.random() * 60);
             const created = new Date(now - d * 86400000);
             created.setHours(hour, min, 0, 0);
+            const oType = types[Math.floor(Math.random() * types.length)];
+            const zone = oType === 'delivery' ? (seedZones[Math.floor(Math.random() * seedZones.length)]) : null;
+            const deliveryFee = zone ? zone.fee : 0;
+            const grand = total + deliveryFee;
             orders.push({
                 id: 'seed_' + num,
                 number: num,
                 items, subtotal, tax, service: 0, discount,
-                total, paid: method === 'cash' ? Math.ceil(total / 1000) * 1000 : total,
-                change: method === 'cash' ? Math.ceil(total / 1000) * 1000 - total : 0,
-                orderType: types[Math.floor(Math.random() * types.length)],
+                total: grand, paid: method === 'cash' ? Math.ceil(grand / 1000) * 1000 : grand,
+                change: method === 'cash' ? Math.ceil(grand / 1000) * 1000 - grand : 0,
+                orderType: oType,
+                orderTypeLabel: typeLabels[oType],
+                zoneId: zone ? zone.id : null,
+                zoneName: zone ? zone.name : '',
+                deliveryFee,
+                address: zone ? zone.name + ' — عنوان تجريبي' : '',
                 customerId: cid, customerName: custNames[cid], customerPhone: custPhones[cid],
                 paymentMethod: method, notes: '',
                 status: Math.random() > 0.2 ? 'completed' : 'preparing',
@@ -214,9 +246,9 @@ function migrateDB(db) {
     });
     // مجموعات جديدة
     ['users', 'offers', 'tables', 'expenses', 'shifts', 'activity',
-     'drivers', 'zones', 'deliveries', 'driverSettlements', 'suspendedCarts',
-     'reservations', 'suppliers', 'purchases', 'payroll', 'attendance',
-     'salaryAdvances', 'wastes', 'feedback'].forEach(k => {
+     'drivers', 'zones', 'deliveries', 'reservations', 'suppliers',
+     'purchases', 'payroll', 'wastes', 'feedback',
+     'attendance', 'advances', 'heldOrders', 'settlements'].forEach(k => {
         if (!Array.isArray(db[k])) db[k] = fresh[k] ? JSON.parse(JSON.stringify(fresh[k])) : [];
     });
     if (!db.recipes || typeof db.recipes !== 'object' || Array.isArray(db.recipes)) db.recipes = {};
@@ -231,20 +263,24 @@ function migrateDB(db) {
     });
     db.tables.forEach(t => { if (t.status === undefined) t.status = 'free'; });
     db.users.forEach(u => {
-        if (!u.payCycle) u.payCycle = 'monthly';
+        if (u.salary === undefined) u.salary = Number(u.salaryRate || 0);
         if (u.salaryRate === undefined) u.salaryRate = Number(u.salary || 0);
-        if (u.shiftHours === undefined) u.shiftHours = 8;
+        if (!u.payCycle) u.payCycle = u.salaryCycle || 'monthly';
+        if (!Array.isArray(u.workDays)) u.workDays = [0, 1, 2, 3, 4, 5, 6];
+        if (u.hireDate === undefined) u.hireDate = '';
     });
-    db.zones.forEach(z => {
+    db.customers.forEach(c => {
+        if (!Array.isArray(c.addresses)) c.addresses = [];
+    });
+    (db.zones || []).forEach(z => {
         if (z.active === undefined) z.active = true;
-        if (z.minimumOrder === undefined) z.minimumOrder = 0;
-        if (z.freeAbove === undefined) z.freeAbove = 0;
-        if (!z.color) z.color = '#2563eb';
+        if (!z.color) z.color = '#c1272d';
     });
-    db.deliveries.forEach(d => {
-        if (!d.collectionStatus) d.collectionStatus = d.paymentMethod === 'cod' ? 'due' : 'prepaid';
-        if (d.cashToCollect === undefined) d.cashToCollect = d.paymentMethod === 'cod' ? Number(d.total || 0) : 0;
-        if (!d.priority) d.priority = 'normal';
+    const haveZ = new Set((db.zones || []).map(z => z.id));
+    (fresh.zones || []).forEach(z => { if (!haveZ.has(z.id)) db.zones.push(JSON.parse(JSON.stringify(z))); });
+    (db.payroll || []).forEach(p => {
+        if (!p.cycle) p.cycle = 'monthly';
+        if (!p.period) p.period = p.month || '';
     });
     if (!db.meta) db.meta = { createdAt: Date.now() };
     return db;
@@ -317,8 +353,6 @@ const getZones = () => DB.zones || (DB.zones = []);
 const getZone = (id) => getZones().find(z => z.id === id);
 const getDeliveries = () => DB.deliveries || (DB.deliveries = []);
 const getDelivery = (id) => getDeliveries().find(d => d.id === id);
-const getDriverSettlements = () => DB.driverSettlements || (DB.driverSettlements = []);
-const getSuspendedCarts = () => DB.suspendedCarts || (DB.suspendedCarts = []);
 const getReservations = () => DB.reservations || (DB.reservations = []);
 const getReservation = (id) => getReservations().find(r => r.id === id);
 const getSuppliers = () => DB.suppliers || (DB.suppliers = []);
@@ -326,12 +360,64 @@ const getSupplier = (id) => getSuppliers().find(s => s.id === id);
 const getPurchases = () => DB.purchases || (DB.purchases = []);
 const getPurchase = (id) => getPurchases().find(p => p.id === id);
 const getPayroll = () => DB.payroll || (DB.payroll = []);
-const getAttendance = () => DB.attendance || (DB.attendance = []);
-const getSalaryAdvances = () => DB.salaryAdvances || (DB.salaryAdvances = []);
 const getWastes = () => DB.wastes || (DB.wastes = []);
 const getFeedback = () => DB.feedback || (DB.feedback = []);
 const getRecipes = () => DB.recipes || (DB.recipes = {});
 const getRecipe = (productId) => getRecipes()[productId] || null;
+const getAttendance = () => DB.attendance || (DB.attendance = []);
+const getAdvances = () => DB.advances || (DB.advances = []);
+const getHeldOrders = () => DB.heldOrders || (DB.heldOrders = []);
+const getSuspendedCarts = () => getHeldOrders();
+const getSettlements = () => DB.settlements || (DB.settlements = []);
+const getActiveZones = () => getZones().filter(z => z.active !== false);
+
+/* توافق مع لوحة المدير بعد دمج الإصدار الموازي */
+function deliveryUnsettledCash() {
+    return getDeliveries()
+        .filter(d => d.status === 'delivered' && !d.settled && Number(d.collect || d.cashToCollect || 0) > 0)
+        .reduce((s, d) => s + Number(d.collect || d.cashToCollect || 0), 0);
+}
+function openSuspendedCarts() {
+    if (typeof navigate === 'function') navigate('pos');
+    setTimeout(() => {
+        const list = getHeldOrders();
+        if (!list.length) { toast('لا توجد طلبات معلّقة', 'info'); return; }
+        if (typeof restoreHeldOrder === 'function') restoreHeldOrder(list[0].id);
+    }, 180);
+}
+
+const PAY_CYCLE = {
+    daily:   { label: 'يومي',    icon: 'bi-sunrise',        unit: 'يوم' },
+    weekly:  { label: 'أسبوعي',  icon: 'bi-calendar-week',  unit: 'أسبوع' },
+    monthly: { label: 'شهري',    icon: 'bi-calendar-month', unit: 'شهر' }
+};
+
+function todayKey(ts) {
+    const d = ts ? new Date(ts) : new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+function weekKey(ts) {
+    const d = ts ? new Date(ts) : new Date();
+    const tmp = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    const dayNum = tmp.getUTCDay() || 7;
+    tmp.setUTCDate(tmp.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(tmp.getUTCFullYear(), 0, 1));
+    const week = Math.ceil((((tmp - yearStart) / 86400000) + 1) / 7);
+    return `${tmp.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
+}
+function monthKey(ts) {
+    const d = ts ? new Date(ts) : new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+function periodKey(cycle, ts) {
+    if (cycle === 'daily') return todayKey(ts);
+    if (cycle === 'weekly') return weekKey(ts);
+    return monthKey(ts);
+}
+function todayAttendance(userId) {
+    const day = todayKey();
+    return getAttendance().find(a => a.userId === userId && a.date === day) || null;
+}
 
 /* ----- مستويات الولاء ----- */
 const LOYALTY_TIERS = [
@@ -401,7 +487,7 @@ const api = {
     },
     // العملاء
     addCustomer(data) {
-        const c = { id: uid('cu'), points: 0, createdAt: Date.now(), phone: '-', ...data };
+        const c = { id: uid('cu'), points: 0, createdAt: Date.now(), phone: '-', addresses: [], ...data };
         DB.customers.push(c); persist(); return c;
     },
     updateCustomer(id, data) {
@@ -539,29 +625,25 @@ const api = {
         const d = { id: uid('dr'), name: '', phone: '', vehicle: 'دراجة نارية', plate: '', commission: getSettings().driverCommission || 0, active: true, createdAt: Date.now(), ...data };
         DB.drivers.push(d); logActivity('delivery', `إضافة سائق: ${d.name}`); persist(); return d;
     },
-    updateDriver(id, data) { const d = getDriver(id); if (!d) return; Object.assign(d, data); logActivity('delivery', `تحديث سائق: ${d.name}`); persist(); },
+    updateDriver(id, data) { const d = getDriver(id); if (!d) return; Object.assign(d, data); persist(); },
     deleteDriver(id) {
         if (getDeliveries().some(x => x.driverId === id && x.status !== 'delivered' && x.status !== 'cancelled')) {
             toast('لا يمكن حذف سائق لديه طلبات جارية', 'error'); return false;
         }
         DB.drivers = DB.drivers.filter(d => d.id !== id); persist(); return true;
     },
-    addZone(data) { const z = { id: uid('z'), name: '', fee: 0, minutes: 30, minimumOrder: 0, freeAbove: 0, active: true, color: '#2563eb', ...data }; DB.zones.push(z); logActivity('delivery', `إضافة منطقة توصيل: ${z.name}`); persist(); return z; },
-    updateZone(id, data) { const z = getZone(id); if (!z) return; Object.assign(z, data); logActivity('delivery', `تحديث تسعيرة منطقة ${z.name}: ${moneyNum(z.fee)}`); persist(); },
-    deleteZone(id) {
-        const z = getZone(id); if (!z) return false;
-        if (getDeliveries().some(d => d.zoneId === id)) { toast('لا يمكن حذف منطقة مرتبطة بطلبات سابقة — أوقفها بدلاً من ذلك للحفاظ على التقارير', 'warning'); return false; }
-        DB.zones = DB.zones.filter(x => x.id !== id); logActivity('delivery', `حذف منطقة: ${z.name}`); persist(); return true;
-    },
+    addZone(data) { const z = { id: uid('z'), name: '', fee: 0, minutes: 30, active: true, color: '#c1272d', ...data }; DB.zones.push(z); persist(); return z; },
+    updateZone(id, data) { const z = getZone(id); if (!z) return; Object.assign(z, data); persist(); },
+    deleteZone(id) { DB.zones = DB.zones.filter(z => z.id !== id); persist(); },
 
     addDelivery(data) {
         const d = {
             id: uid('dl'), orderId: null, orderNumber: null, driverId: null, zoneId: null,
             address: '', phone: '', customerName: '', fee: 0, total: 0,
-            paymentMethod: 'cash', cashToCollect: 0, collectionStatus: 'prepaid',
-            priority: 'normal', promisedAt: null, attempts: 0,
-            status: 'pending', // pending | assigned | onway | delivered | cancelled
-            createdAt: Date.now(), assignedAt: null, pickedAt: null, deliveredAt: null, note: '', ...data
+            status: 'pending', // pending | assigned | onway | delivered | cancelled | failed | returned
+            createdAt: Date.now(), assignedAt: null, pickedAt: null, deliveredAt: null, note: '',
+            express: false, collect: 0, collected: false, settled: false, receivedBy: '',
+            ...data
         };
         DB.deliveries.unshift(d); logActivity('delivery', `طلب توصيل جديد #${d.orderNumber || '-'}`); persist(); return d;
     },
@@ -573,7 +655,6 @@ const api = {
         if (status === 'onway') d.pickedAt = Date.now();
         if (status === 'delivered') {
             d.deliveredAt = Date.now();
-            if (d.paymentMethod === 'cod' && d.collectionStatus === 'due') d.collectionStatus = 'collected';
             const o = d.orderId ? getOrder(d.orderId) : null;
             if (o && o.status !== 'completed') o.status = 'completed';
         }
@@ -588,31 +669,6 @@ const api = {
         persist();
     },
     deleteDelivery(id) { DB.deliveries = DB.deliveries.filter(d => d.id !== id); persist(); },
-
-    settleDriver(driverId, deliveryIds, amount, note = '') {
-        const ids = Array.isArray(deliveryIds) ? deliveryIds : [];
-        const list = getDeliveries().filter(d => ids.includes(d.id) && d.driverId === driverId && d.collectionStatus === 'collected');
-        if (!list.length) return null;
-        const expected = list.reduce((s, d) => s + Number(d.cashToCollect || 0), 0);
-        const dr = getDriver(driverId);
-        const st = {
-            id: uid('dst'), driverId, driverName: dr?.name || '-', deliveryIds: list.map(d => d.id),
-            expected, amount: Number(amount || 0), difference: Number(amount || 0) - expected,
-            commission: list.length * Number(dr?.commission || 0), note,
-            createdAt: Date.now(), userName: (typeof currentUser === 'function' && currentUser()) ? currentUser().name : '-'
-        };
-        DB.driverSettlements.unshift(st);
-        list.forEach(d => { d.collectionStatus = 'settled'; d.settlementId = st.id; d.settledAt = st.createdAt; });
-        logActivity('delivery', `تسوية تحصيل السائق ${st.driverName}: ${moneyNum(st.amount)} (${list.length} طلب)`);
-        persist(); return st;
-    },
-
-    /* ============ الطلبات المعلّقة في الكاشير ============ */
-    addSuspendedCart(data) {
-        const h = { id: uid('hold'), label: '', items: [], createdAt: Date.now(), userId: '', userName: '', ...data };
-        DB.suspendedCarts.unshift(h); logActivity('order', `تعليق طلب: ${h.label || h.id}`); persist(); return h;
-    },
-    deleteSuspendedCart(id) { DB.suspendedCarts = DB.suspendedCarts.filter(x => x.id !== id); persist(); },
 
     /* ============ الحجوزات ============ */
     addReservation(data) {
@@ -691,54 +747,145 @@ const api = {
 
     /* ============ الرواتب ============ */
     addPayroll(data) {
+        const cycle = data.cycle || 'monthly';
+        const period = data.period || periodKey(cycle);
         const p = {
-            id: uid('pr'), userId: null, userName: '', month: new Date().toISOString().slice(0, 7),
-            base: 0, bonus: 0, deduction: 0, advance: 0, net: 0, paid: false, paidAt: null, note: '',
+            id: uid('pr'), userId: null, userName: '',
+            month: cycle === 'monthly' ? period : (period.slice(0, 7)),
+            period, cycle,
+            base: 0, bonus: 0, deduction: 0, advance: 0, overtime: 0,
+            daysWorked: 0, daysExpected: 0,
+            net: 0, paid: false, paidAt: null, note: '',
             createdAt: Date.now(), ...data
         };
-        p.net = Number(p.base || 0) + Number(p.bonus || 0) - Number(p.deduction || 0) - Number(p.advance || 0);
-        DB.payroll.unshift(p); logActivity('payroll', `قيد راتب: ${p.userName} (${p.month})`); persist(); return p;
+        p.net = Number(p.base || 0) + Number(p.bonus || 0) + Number(p.overtime || 0) - Number(p.deduction || 0) - Number(p.advance || 0);
+        DB.payroll.unshift(p); logActivity('payroll', `قيد راتب: ${p.userName} (${PAY_CYCLE[p.cycle]?.label || p.cycle} ${p.period})`); persist(); return p;
     },
     updatePayroll(id, data) {
         const p = DB.payroll.find(x => x.id === id); if (!p) return;
         Object.assign(p, data);
-        p.net = Number(p.base || 0) + Number(p.bonus || 0) - Number(p.deduction || 0) - Number(p.advance || 0);
+        p.net = Number(p.base || 0) + Number(p.bonus || 0) + Number(p.overtime || 0) - Number(p.deduction || 0) - Number(p.advance || 0);
         persist();
     },
     payPayroll(id) {
         const p = DB.payroll.find(x => x.id === id); if (!p) return;
-        if (p.paid) { toast('هذا المستحق مصروف مسبقاً', 'warning'); return p; }
         p.paid = true; p.paidAt = Date.now();
-        (p.advanceIds || []).forEach(aid => {
-            const a = getSalaryAdvances().find(x => x.id === aid);
-            if (a) { a.recovered = true; a.recoveredAt = Date.now(); a.payrollId = p.id; }
-        });
-        // تسجيلها كمصروف تلقائياً
-        api.addExpense({ title: `راتب ${p.userName} — ${p.month}`, category: 'رواتب', amount: p.net, note: 'قيد آلي من كشف الرواتب' });
+        const cycleLabel = PAY_CYCLE[p.cycle]?.label || 'راتب';
+        api.addExpense({ title: `راتب ${cycleLabel} — ${p.userName} (${p.period})`, category: 'رواتب', amount: p.net, note: 'قيد آلي من كشف الرواتب' });
         logActivity('payroll', `صرف راتب ${p.userName}: ${moneyNum(p.net)}`);
         persist();
     },
     deletePayroll(id) { DB.payroll = DB.payroll.filter(p => p.id !== id); persist(); },
 
-    /* ============ الحضور والسلف ============ */
+    /* ============ الحضور والانصراف ============ */
+    clockIn(userId) {
+        const u = getUser(userId); if (!u) return null;
+        const day = todayKey();
+        let rec = getAttendance().find(a => a.userId === userId && a.date === day);
+        if (rec && rec.inAt) { toast('تم تسجيل الحضور مسبقاً اليوم', 'warning'); return rec; }
+        const now = Date.now();
+        const start = getSettings().workStart || '09:00';
+        const [hh, mm] = start.split(':').map(Number);
+        const startTs = new Date(); startTs.setHours(hh || 9, mm || 0, 0, 0);
+        const lateMin = Number(getSettings().lateAfterMinutes || 15);
+        const late = now > startTs.getTime() + lateMin * 60000;
+        if (!rec) {
+            rec = { id: uid('at'), userId, userName: u.name, date: day, inAt: now, outAt: null, status: late ? 'late' : 'present', note: '', minutes: 0 };
+            DB.attendance.unshift(rec);
+        } else {
+            rec.inAt = now; rec.status = late ? 'late' : 'present';
+        }
+        logActivity('attendance', `حضور: ${u.name}${late ? ' (متأخر)' : ''}`);
+        persist();
+        return rec;
+    },
+    clockOut(userId) {
+        const rec = todayAttendance(userId);
+        if (!rec || !rec.inAt) { toast('سجّل الحضور أولاً', 'warning'); return null; }
+        if (rec.outAt) { toast('تم تسجيل الانصراف مسبقاً', 'warning'); return rec; }
+        rec.outAt = Date.now();
+        rec.minutes = Math.max(0, Math.round((rec.outAt - rec.inAt) / 60000));
+        logActivity('attendance', `انصراف: ${rec.userName} — ${rec.minutes} دقيقة`);
+        persist();
+        return rec;
+    },
     addAttendance(data) {
-        const a = { id: uid('att'), userId: null, userName: '', date: new Date().toISOString().slice(0, 10), checkIn: '', checkOut: '', status: 'present', lateMinutes: 0, overtimeMinutes: 0, note: '', createdAt: Date.now(), ...data };
-        DB.attendance.unshift(a); logActivity('attendance', `حضور ${a.userName}: ${a.date}`); persist(); return a;
+        const a = {
+            id: uid('at'), userId: null, userName: '', date: todayKey(),
+            inAt: null, outAt: null, status: 'present', note: '', minutes: 0,
+            createdAt: Date.now(), ...data
+        };
+        if (a.inAt && a.outAt) a.minutes = Math.max(0, Math.round((a.outAt - a.inAt) / 60000));
+        DB.attendance.unshift(a); persist(); return a;
     },
-    updateAttendance(id, data) { const a = getAttendance().find(x => x.id === id); if (!a) return; Object.assign(a, data); persist(); },
-    deleteAttendance(id) { DB.attendance = DB.attendance.filter(x => x.id !== id); persist(); },
-    addSalaryAdvance(data) {
-        const a = { id: uid('adv'), userId: null, userName: '', amount: 0, date: new Date().toISOString().slice(0, 10), recovered: false, note: '', createdAt: Date.now(), ...data };
-        DB.salaryAdvances.unshift(a);
-        const ex = api.addExpense({ title: `سلفة موظف — ${a.userName}`, category: 'سلف موظفين', amount: a.amount, note: a.note || 'قيد آلي من الموارد البشرية' });
-        a.expenseId = ex?.id || null;
-        logActivity('payroll', `سلفة ${a.userName}: ${moneyNum(a.amount)}`); persist(); return a;
+    updateAttendance(id, data) {
+        const a = getAttendance().find(x => x.id === id); if (!a) return;
+        Object.assign(a, data);
+        if (a.inAt && a.outAt) a.minutes = Math.max(0, Math.round((a.outAt - a.inAt) / 60000));
+        persist();
     },
-    deleteSalaryAdvance(id) {
-        const a = getSalaryAdvances().find(x => x.id === id); if (!a || a.recovered) return false;
-        DB.salaryAdvances = DB.salaryAdvances.filter(x => x.id !== id);
-        if (a.expenseId) DB.expenses = DB.expenses.filter(e => e.id !== a.expenseId);
-        logActivity('payroll', `حذف سلفة ${a.userName}: ${moneyNum(a.amount)}`); persist(); return true;
+    deleteAttendance(id) { DB.attendance = DB.attendance.filter(a => a.id !== id); persist(); },
+
+    /* ============ السلف ============ */
+    addAdvance(data) {
+        const a = {
+            id: uid('av'), userId: null, userName: '', amount: 0,
+            date: todayKey(), settled: false, note: '', createdAt: Date.now(), ...data
+        };
+        DB.advances.unshift(a);
+        logActivity('payroll', `سلفة: ${a.userName} ${moneyNum(a.amount)}`);
+        persist(); return a;
+    },
+    settleAdvance(id) {
+        const a = getAdvances().find(x => x.id === id); if (!a) return;
+        a.settled = true; a.settledAt = Date.now(); persist();
+    },
+    deleteAdvance(id) { DB.advances = DB.advances.filter(a => a.id !== id); persist(); },
+
+    /* ============ الطلبات المعلّقة ============ */
+    holdOrder(data) {
+        const h = {
+            id: uid('ho'), items: [], customerId: 'cu1', customerName: 'عميل نقدي',
+            orderType: 'dine', zoneId: null, address: '', tableId: null,
+            discount: 0, express: false, feeOverride: null, notes: '',
+            createdAt: Date.now(),
+            cashierName: (typeof currentUser === 'function' && currentUser()) ? currentUser().name : '-',
+            ...data
+        };
+        DB.heldOrders.unshift(h);
+        logActivity('order', `تعليق طلب (${(h.items || []).reduce((n, i) => n + i.qty, 0)} صنف)`);
+        persist(); return h;
+    },
+    deleteHeldOrder(id) { DB.heldOrders = DB.heldOrders.filter(h => h.id !== id); persist(); },
+
+    /* ============ تسوية السائقين ============ */
+    settleDriver(driverId, deliveryIds) {
+        const dr = getDriver(driverId); if (!dr) return null;
+        const list = (deliveryIds || []).map(id => getDelivery(id)).filter(Boolean);
+        const collected = list.reduce((s, d) => s + Number(d.collect || d.total || 0), 0);
+        const fees = list.reduce((s, d) => s + Number(d.fee || 0), 0);
+        const commission = list.length * Number(dr.commission || 0);
+        list.forEach(d => { d.settled = true; d.collected = true; });
+        const rec = {
+            id: uid('st'), driverId, driverName: dr.name,
+            count: list.length, collected, fees, commission,
+            netToRestaurant: collected - commission,
+            deliveryIds: list.map(d => d.id),
+            createdAt: Date.now(),
+            userName: (typeof currentUser === 'function' && currentUser()) ? currentUser().name : '-'
+        };
+        DB.settlements.unshift(rec);
+        logActivity('delivery', `تسوية سائق ${dr.name}: ${list.length} طلب — حصّل ${moneyNum(collected)}`);
+        persist();
+        return rec;
+    },
+    deleteSettlement(id) { DB.settlements = DB.settlements.filter(s => s.id !== id); persist(); },
+
+    addCustomerAddress(customerId, data) {
+        const c = getCustomer(customerId); if (!c || c.id === 'cu1') return null;
+        if (!Array.isArray(c.addresses)) c.addresses = [];
+        const a = { id: uid('ad'), label: 'عنوان', zoneId: null, address: '', ...data };
+        c.addresses.push(a); persist(); return a;
     },
 
     /* ============ الهدر والتالف ============ */
@@ -843,9 +990,12 @@ const api = {
     },
     resetPurchases() { DB.purchases = []; DB.suppliers.forEach(s => s.balance = 0); logActivity('danger', 'تصفير المشتريات'); persist(); },
     resetPayroll() { DB.payroll = []; logActivity('danger', 'تصفير كشوف الرواتب'); persist(); },
-    resetAttendance() { DB.attendance = []; logActivity('danger', 'تصفير سجل الحضور'); persist(); },
     resetWastes() { DB.wastes = []; logActivity('danger', 'تصفير سجل الهدر'); persist(); },
     resetFeedback() { DB.feedback = []; logActivity('danger', 'تصفير التقييمات'); persist(); },
+    resetAttendance() { DB.attendance = []; logActivity('danger', 'تصفير سجل الحضور'); persist(); },
+    resetAdvances() { DB.advances = []; logActivity('danger', 'تصفير السلف'); persist(); },
+    resetHeldOrders() { DB.heldOrders = []; logActivity('danger', 'تصفير الطلبات المعلّقة'); persist(); },
+    resetSettlements() { DB.settlements = []; logActivity('danger', 'تصفير تسويات السائقين'); persist(); },
     // الإعدادات
     saveSettings(data) {
         Object.assign(DB.settings, data); persist();
@@ -880,12 +1030,9 @@ function shiftSummary(shift) {
     const to = shift.closedAt || Date.now();
     const orders = DB.orders.filter(o => o.createdAt >= from && o.createdAt <= to && o.status !== 'cancelled');
     const expenses = DB.expenses.filter(e => e.createdAt >= from && e.createdAt <= to);
-    const by = (m) => orders.reduce((sum, o) => {
-        if (Array.isArray(o.payments) && o.payments.length) return sum + o.payments.filter(p => p.method === m).reduce((x, p) => x + Number(p.amount || 0), 0);
-        return sum + (o.paymentMethod === m ? Number(o.total || 0) : 0);
-    }, 0);
+    const by = (m) => orders.filter(o => o.paymentMethod === m).reduce((s, o) => s + o.total, 0);
     const cash = by('cash'), card = by('card'), online = by('online');
-    const total = orders.reduce((s, o) => s + Number(o.total || 0), 0);
+    const total = cash + card + online;
     const expTotal = expenses.reduce((s, e) => s + Number(e.amount || 0), 0);
     return {
         orders: orders.length, items: orders.reduce((n, o) => n + o.items.reduce((x, i) => x + i.qty, 0), 0),

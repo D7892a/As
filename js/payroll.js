@@ -1,367 +1,527 @@
 /* ============================================
-   الموارد البشرية — الرواتب الدورية والحضور والسلف والهدر
+   الرواتب والحضور والسلف والهدر
    ============================================ */
 
-let _prMonth = new Date().toISOString().slice(0, 7);
-let _prTab = 'payroll'; // payroll | profiles | attendance | advances | waste
+let _prMonth = monthKey();
+let _prPeriod = monthKey();
+let _prCycle = 'monthly';
+let _prTab = 'payroll'; // payroll | attend | advances | waste
+let _attDate = todayKey();
 
-const PAY_CYCLES = {
-    daily: { label: 'يومي', icon: 'bi-calendar-day', unit: 'يوم' },
-    weekly: { label: 'أسبوعي', icon: 'bi-calendar-week', unit: 'أسبوع' },
-    monthly: { label: 'شهري', icon: 'bi-calendar-month', unit: 'شهر' }
-};
-const ATTENDANCE_STATUS = {
+const ATT_STATUS = {
     present: { label: 'حاضر', cls: 'badge-success' },
-    late: { label: 'متأخر', cls: 'badge-warning' },
-    absent: { label: 'غائب', cls: 'badge-danger' },
-    leave: { label: 'إجازة', cls: 'badge-info' },
-    sick: { label: 'مرضية', cls: 'badge-dark' }
+    late:    { label: 'متأخر', cls: 'badge-warning' },
+    absent:  { label: 'غائب', cls: 'badge-danger' },
+    leave:   { label: 'إجازة', cls: 'badge-info' }
 };
-
-function payrollMonthRange(month = _prMonth) {
-    const [y, m] = month.split('-').map(Number);
-    const start = new Date(y, m - 1, 1);
-    const end = new Date(y, m, 0);
-    const key = d => {
-        const yy = d.getFullYear(), mm = String(d.getMonth() + 1).padStart(2, '0'), dd = String(d.getDate()).padStart(2, '0');
-        return `${yy}-${mm}-${dd}`;
-    };
-    return { start, end, startKey: key(start), endKey: key(end), key };
-}
-function attendanceHours(a) {
-    if (!a?.checkIn || !a?.checkOut) return 0;
-    const [ih, im] = a.checkIn.split(':').map(Number), [oh, om] = a.checkOut.split(':').map(Number);
-    return Math.max(0, Math.round((((oh * 60 + om) - (ih * 60 + im)) / 60) * 10) / 10);
-}
-function payrollPeriodLabel(p) {
-    if (p.periodLabel) return p.periodLabel;
-    if (p.periodStart && p.periodEnd && p.periodStart !== p.periodEnd) return `${p.periodStart} ← ${p.periodEnd}`;
-    return p.periodStart || p.month || '—';
-}
 
 function renderPayroll() {
     const wrap = document.getElementById('payrollContainer');
     if (!wrap) return;
 
-    const monthList = getPayroll().filter(p => p.month === _prMonth);
-    const totalNet = monthList.reduce((s, p) => s + Number(p.net || 0), 0);
-    const paidTotal = monthList.filter(p => p.paid).reduce((s, p) => s + Number(p.net || 0), 0);
-    const monthAttendance = getAttendance().filter(a => a.date?.startsWith(_prMonth));
-    const outstandingAdv = getSalaryAdvances().filter(a => !a.recovered).reduce((s, a) => s + Number(a.amount || 0), 0);
+    const list = getPayroll().filter(p => (p.period || p.month) === _prPeriod || (p.cycle === _prCycle && p.month === _prMonth));
+    const totalNet = list.reduce((s, p) => s + Number(p.net || 0), 0);
+    const paidTotal = list.filter(p => p.paid).reduce((s, p) => s + Number(p.net || 0), 0);
+    const wasteMonth = getWastes().filter(w => monthKey(w.createdAt) === _prMonth)
+        .reduce((s, w) => s + Number(w.cost || 0), 0);
+    const todayAtt = getAttendance().filter(a => a.date === todayKey());
+    const openAdv = getAdvances().filter(a => !a.settled).reduce((s, a) => s + Number(a.amount || 0), 0);
 
     wrap.innerHTML = `
-        <div class="hr-hero">
-            <div class="hr-hero-icon"><i class="bi bi-people-fill"></i></div>
-            <div><h2>الموارد البشرية والرواتب</h2><p>أجور يومية وأسبوعية وشهرية، حضور وانصراف، سلف، وكلفة الهدر في مركز واحد.</p></div>
-            <div class="spacer"></div>
-            <div class="field" style="margin:0;min-width:175px"><label style="color:#fff">شهر العمل</label><input class="input" type="month" value="${_prMonth}" onchange="setPrMonth(this.value)"></div>
-        </div>
         <div class="stats-grid">
-            <div class="stat"><i class="bi bi-people stat-icon"></i><div class="stat-label">الموظفون النشطون</div><div class="stat-value">${getUsers().filter(u => u.active !== false).length}</div></div>
-            <div class="stat gold"><i class="bi bi-cash-stack stat-icon" style="color:rgba(212,175,55,.1)"></i><div class="stat-label">مستحقات ${_prMonth}</div><div class="stat-value" style="font-size:20px">${moneyNum(totalNet)}</div><div class="stat-trend">${monthList.length} دفعة دورية</div></div>
-            <div class="stat green"><i class="bi bi-check2-circle stat-icon" style="color:rgba(22,163,74,.1)"></i><div class="stat-label">المصروف فعلياً</div><div class="stat-value" style="font-size:20px">${moneyNum(paidTotal)}</div><div class="stat-trend">المتبقي ${moneyNum(Math.max(0, totalNet - paidTotal))}</div></div>
-            <div class="stat blue"><i class="bi bi-fingerprint stat-icon" style="color:rgba(37,99,235,.1)"></i><div class="stat-label">سجلات الحضور</div><div class="stat-value">${monthAttendance.length}</div><div class="stat-trend">سلف غير مستردة ${moneyNum(outstandingAdv)}</div></div>
+            <div class="stat"><i class="bi bi-cash-stack stat-icon"></i><div class="stat-label">قيود الفترة</div><div class="stat-value">${list.length}</div></div>
+            <div class="stat gold"><i class="bi bi-wallet2 stat-icon" style="color:rgba(212,175,55,.1)"></i><div class="stat-label">إجمالي الرواتب</div><div class="stat-value" style="font-size:20px">${moneyNum(totalNet)}</div></div>
+            <div class="stat green"><i class="bi bi-check2-circle stat-icon" style="color:rgba(22,163,74,.1)"></i><div class="stat-label">المصروف فعلياً</div><div class="stat-value" style="font-size:20px">${moneyNum(paidTotal)}</div></div>
+            <div class="stat blue"><i class="bi bi-person-check stat-icon" style="color:rgba(37,99,235,.1)"></i><div class="stat-label">حضور اليوم</div><div class="stat-value">${todayAtt.length}<small style="font-size:13px"> / ${getUsers().filter(u => u.active !== false).length}</small></div></div>
+            <div class="stat purple"><i class="bi bi-piggy-bank stat-icon" style="color:rgba(124,58,237,.1)"></i><div class="stat-label">سلف معلّقة</div><div class="stat-value" style="font-size:20px">${moneyNum(openAdv)}</div></div>
         </div>
 
-        <div class="seg-tabs payroll-tabs">
-            ${[
-                ['payroll', 'bi-cash-stack', 'المستحقات والصرف'],
-                ['profiles', 'bi-person-vcard', 'عقود وأنظمة الأجر'],
-                ['attendance', 'bi-fingerprint', 'الحضور والانصراف'],
-                ['advances', 'bi-wallet2', 'السلف والاسترداد'],
-                ['waste', 'bi-trash3', 'الهدر والتالف']
-            ].map(([k, i, l]) => `<button class="seg ${_prTab === k ? 'active' : ''}" onclick="setPrTab('${k}')"><i class="bi ${i}"></i> ${l}</button>`).join('')}
+        <div class="seg-tabs">
+            ${[['payroll', 'bi-cash-stack', 'كشف الرواتب'], ['attend', 'bi-fingerprint', 'الحضور والانصراف'], ['advances', 'bi-piggy-bank', 'السلف'], ['waste', 'bi-trash3', 'سجل الهدر']]
+              .map(([k, i, l]) => `<button class="seg ${_prTab === k ? 'active' : ''}" onclick="setPrTab('${k}')"><i class="bi ${i}"></i> ${l}</button>`).join('')}
         </div>
         <div id="prBody"></div>`;
     renderPrBody();
 }
 function setPrTab(t) { _prTab = t; renderPayroll(); }
-function setPrMonth(m) { if (m) _prMonth = m; renderPayroll(); }
+function setPrMonth(m) { _prMonth = m; _prPeriod = m; _prCycle = 'monthly'; renderPayroll(); }
+function setPrCycleView(c) {
+    _prCycle = c;
+    _prPeriod = periodKey(c);
+    if (c === 'monthly') _prMonth = monthKey();
+    renderPayroll();
+}
 
 function renderPrBody() {
     const box = document.getElementById('prBody');
     if (!box) return;
-    if (_prTab === 'profiles') return renderPayProfiles(box);
-    if (_prTab === 'attendance') return renderAttendanceTab(box);
-    if (_prTab === 'advances') return renderAdvancesTab(box);
     if (_prTab === 'waste') return renderWasteTab(box);
-    renderPayrollLedger(box);
-}
+    if (_prTab === 'attend') return renderAttendTab(box);
+    if (_prTab === 'advances') return renderAdvancesTab(box);
 
-/* ============ دفتر المستحقات ============ */
-function renderPayrollLedger(box) {
-    const list = getPayroll().filter(p => p.month === _prMonth).sort((a, b) => String(b.periodStart || '').localeCompare(String(a.periodStart || '')));
+    const list = getPayroll().filter(p => {
+        const per = p.period || p.month;
+        if (_prCycle === 'monthly') return (p.cycle || 'monthly') === 'monthly' && (per === _prPeriod || p.month === _prMonth);
+        return p.cycle === _prCycle && per === _prPeriod;
+    });
+
     box.innerHTML = `
         <div class="toolbar">
-            <div class="payroll-guide"><i class="bi bi-magic"></i><span><b>التوليد الذكي:</b> الشهري مرة، الأسبوعي لكل أسبوع، واليومي بحسب أيام الحضور المسجلة.</span></div>
+            <div class="filter-pills">
+                ${Object.entries(PAY_CYCLE).map(([k, v]) => `<span class="pill ${_prCycle === k ? 'active' : ''}" onclick="setPrCycleView('${k}')"><i class="bi ${v.icon}"></i> ${v.label}</span>`).join('')}
+            </div>
+            ${_prCycle === 'monthly' ? `<div class="field" style="margin:0;min-width:170px"><input class="input" type="month" value="${_prMonth}" onchange="setPrMonth(this.value)"></div>` : `<span class="badge badge-dark">الفترة: ${_prPeriod}</span>`}
             <div class="spacer"></div>
-            <button class="btn btn-gold" onclick="generatePayrollMonth()"><i class="bi bi-stars"></i> توليد المستحقات</button>
-            <button class="btn btn-light" onclick="printPayroll()"><i class="bi bi-printer"></i> طباعة الكشف</button>
-            <button class="btn btn-primary" data-perm="payroll" onclick="guard('payroll', () => openPayrollForm())"><i class="bi bi-plus-lg"></i> قيد يدوي</button>
+            <button class="btn btn-light" onclick="generatePayrollPeriod()"><i class="bi bi-magic"></i> توليد الكشف تلقائياً</button>
+            <button class="btn btn-light" onclick="printPayroll()"><i class="bi bi-printer"></i> طباعة</button>
+            <button class="btn btn-primary" data-perm="payroll" onclick="guard('payroll', () => openPayrollForm())"><i class="bi bi-plus-lg"></i> قيد راتب</button>
         </div>
         <div class="card">
-            <div class="table-wrap"><table class="tbl payroll-table">
-                <thead><tr><th>الموظف</th><th>نظام الأجر</th><th>الفترة</th><th>الأساسي</th><th>مكافآت</th><th>استقطاعات</th><th>سلف</th><th>الصافي</th><th>الحالة</th><th>إجراءات</th></tr></thead>
-                <tbody>${list.length ? list.map(p => {
-                    const cyc = PAY_CYCLES[p.cycle || 'monthly'] || PAY_CYCLES.monthly;
-                    return `<tr>
-                        <td><div class="cell-main"><div class="cell-thumb payroll-avatar">${(p.userName || '؟').charAt(0)}</div><div><strong>${p.userName}</strong>${p.generatedKey ? '<small>مولّد آلياً</small>' : '<small>قيد يدوي</small>'}</div></div></td>
-                        <td><span class="badge badge-dark"><i class="bi ${cyc.icon}"></i> ${cyc.label}</span></td>
-                        <td><strong>${payrollPeriodLabel(p)}</strong>${p.units ? `<small class="table-sub">${p.units} ${cyc.unit}</small>` : ''}</td>
+            <div class="table-wrap">
+                <table class="tbl">
+                    <thead><tr><th>الموظف</th><th>الدورة</th><th>الأساسي</th><th>إضافي</th><th>مكافآت</th><th>استقطاع</th><th>سلف</th><th>أيام العمل</th><th>الصافي</th><th>الحالة</th><th></th></tr></thead>
+                    <tbody>${list.length ? list.map(p => `<tr>
+                        <td><div class="cell-main"><div class="cell-thumb" style="background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:#fff">${(p.userName || '؟').charAt(0)}</div>
+                            <div><strong>${p.userName}</strong><div style="font-size:11px;color:var(--muted)">${p.period || p.month}</div></div></div></td>
+                        <td><span class="badge badge-dark">${PAY_CYCLE[p.cycle]?.label || 'شهري'}</span></td>
                         <td>${moneyNum(p.base)}</td>
+                        <td style="color:var(--info)">+${moneyNum(p.overtime || 0)}</td>
                         <td style="color:var(--success)">+${moneyNum(p.bonus)}</td>
                         <td style="color:var(--danger)">−${moneyNum(p.deduction)}</td>
                         <td style="color:var(--warning)">−${moneyNum(p.advance)}</td>
+                        <td>${p.daysWorked || 0}${p.daysExpected ? ' / ' + p.daysExpected : ''}</td>
                         <td><strong style="font-size:15px;color:var(--primary-dark)">${moneyNum(p.net)}</strong></td>
-                        <td><span class="badge ${p.paid ? 'badge-success' : 'badge-warning'}">${p.paid ? `مصروف ${fmtDate(p.paidAt)}` : 'بانتظار الصرف'}</span></td>
+                        <td><span class="badge ${p.paid ? 'badge-success' : 'badge-warning'}">${p.paid ? 'مصروف' : 'معلّق'}</span></td>
                         <td><div style="display:flex;gap:5px">
-                            ${!p.paid ? `<button class="icon-btn action-success" data-perm="payroll" onclick="doPayPayroll('${p.id}')" title="صرف وتسجيل مصروف"><i class="bi bi-cash"></i></button><button class="icon-btn action-edit" onclick="openPayrollForm('${p.id}')" title="تعديل"><i class="bi bi-pencil"></i></button>` : ''}
-                            <button class="icon-btn action-danger" data-perm="payroll" onclick="delPayroll('${p.id}')" title="حذف"><i class="bi bi-trash"></i></button>
+                            ${!p.paid ? `<button class="icon-btn" style="width:32px;height:32px;font-size:14px;background:#dcfce7;color:#15803d;border-color:#bbf7d0" data-perm="payroll" onclick="doPayPayroll('${p.id}')" title="صرف"><i class="bi bi-cash"></i></button>` : ''}
+                            <button class="icon-btn" style="width:32px;height:32px;font-size:14px" onclick="printPayslip('${p.id}')" title="قسيمة"><i class="bi bi-printer"></i></button>
+                            <button class="icon-btn" style="width:32px;height:32px;font-size:14px" onclick="openPayrollForm('${p.id}')"><i class="bi bi-pencil"></i></button>
+                            <button class="icon-btn" style="width:32px;height:32px;font-size:14px;background:#fee2e2;color:#b91c1c;border-color:#fecaca" data-perm="payroll" onclick="delPayroll('${p.id}')"><i class="bi bi-trash"></i></button>
                         </div></td>
-                    </tr>`;
-                }).join('') : `<tr><td colspan="10"><div class="empty-state"><i class="bi bi-cash-stack"></i><p>لا توجد مستحقات لهذا الشهر<br><small>اضغط «توليد المستحقات» للاحتساب حسب نظام كل موظف</small></p></div></td></tr>`}</tbody>
-            </table></div>
+                    </tr>`).join('') : `<tr><td colspan="11"><div class="empty-state"><i class="bi bi-cash-stack"></i><p>لا توجد قيود لهذه الفترة — اضغط «توليد الكشف تلقائياً»</p></div></td></tr>`}</tbody>
+                </table>
+            </div>
         </div>`;
     applyPermissions();
 }
 
 function openPayrollForm(id) {
     const p = id ? getPayroll().find(x => x.id === id) : null;
-    const firstUser = getUsers()[0];
-    const cycle = p?.cycle || firstUser?.payCycle || 'monthly';
-    const mr = payrollMonthRange(p?.month || _prMonth);
-    openModalContent(p ? 'تعديل قيد مستحق' : 'إضافة مستحق يدوي', `
+    const cycle = p ? (p.cycle || 'monthly') : _prCycle;
+    openModalContent(p ? 'تعديل قيد راتب' : 'قيد راتب جديد', `
         <div class="row-flex">
-            <div class="field" style="flex:2"><label>الموظف *</label><select class="input" id="prUser" onchange="syncPayrollRateFromUser()">${getUsers().map(u => `<option value="${u.id}" ${p?.userId === u.id ? 'selected' : ''}>${u.avatar || ''} ${u.name} — ${u.jobTitle || ROLE_LABEL[u.role]}</option>`).join('')}</select></div>
-            <div class="field" style="flex:1"><label>نظام الأجر</label><select class="input" id="prCycle" onchange="updatePayrollUnitLabel()">${Object.entries(PAY_CYCLES).map(([k,v]) => `<option value="${k}" ${(p?.cycle || cycle) === k ? 'selected' : ''}>${v.label}</option>`).join('')}</select></div>
+            <div class="field" style="flex:2"><label>الموظف *</label>
+                <select class="input" id="prUser" onchange="fillSalaryFromUser()">
+                    ${getUsers().map(u => `<option value="${u.id}" data-sal="${u.salary || 0}" data-cyc="${u.payCycle || 'monthly'}" ${p && p.userId === u.id ? 'selected' : ''}>${u.avatar || ''} ${u.name} — ${ROLE_LABEL[u.role] || u.role} • ${PAY_CYCLE[u.payCycle || 'monthly']?.label || ''} ${moneyNum(u.salary || 0)}</option>`).join('')}
+                </select>
+            </div>
+            <div class="field" style="flex:1"><label>دورة الراتب</label>
+                <select class="input" id="prCycle">${Object.entries(PAY_CYCLE).map(([k, v]) => `<option value="${k}" ${cycle === k ? 'selected' : ''}>${v.label}</option>`).join('')}</select>
+            </div>
+        </div>
+        <div class="field"><label>الفترة (يوم / أسبوع / شهر)</label>
+            <input class="input" id="prPeriod" value="${p ? (p.period || p.month) : _prPeriod}" placeholder="2026-08 أو 2026-W33 أو 2026-08-18"></div>
+        <div class="row-flex">
+            <div class="field" style="flex:1"><label>الراتب الأساسي</label><input class="input" id="prBase" type="number" value="${p ? p.base : 0}" oninput="calcNet()"></div>
+            <div class="field" style="flex:1"><label>إضافي / أوفر تايم</label><input class="input" id="prOt" type="number" value="${p ? (p.overtime || 0) : 0}" oninput="calcNet()"></div>
+            <div class="field" style="flex:1"><label>مكافآت</label><input class="input" id="prBonus" type="number" value="${p ? p.bonus : 0}" oninput="calcNet()"></div>
         </div>
         <div class="row-flex">
-            <div class="field" style="flex:1"><label>من تاريخ</label><input class="input" id="prStart" type="date" value="${p?.periodStart || mr.startKey}"></div>
-            <div class="field" style="flex:1"><label>إلى تاريخ</label><input class="input" id="prEnd" type="date" value="${p?.periodEnd || mr.endKey}"></div>
+            <div class="field" style="flex:1"><label>استقطاعات (غياب/تأخير)</label><input class="input" id="prDed" type="number" value="${p ? p.deduction : 0}" oninput="calcNet()"></div>
+            <div class="field" style="flex:1"><label>سلف تُخصم</label><input class="input" id="prAdv" type="number" value="${p ? p.advance : 0}" oninput="calcNet()"></div>
+            <div class="field" style="flex:1"><label>أيام العمل</label><input class="input" id="prDays" type="number" value="${p ? (p.daysWorked || 0) : 0}"></div>
         </div>
-        <div class="row-flex">
-            <div class="field" style="flex:1"><label>أجر الوحدة</label><input class="input" id="prRate" type="number" value="${p?.rate ?? firstUser?.salaryRate ?? 0}" oninput="calcPayrollBase()"></div>
-            <div class="field" style="flex:1"><label id="prUnitsLabel">عدد الوحدات</label><input class="input" id="prUnits" type="number" step="0.5" min="0" value="${p?.units || 1}" oninput="calcPayrollBase()"></div>
-            <div class="field" style="flex:1"><label>الراتب الأساسي</label><input class="input" id="prBase" type="number" value="${p?.base || 0}" oninput="calcNet()"></div>
-        </div>
-        <div class="row-flex">
-            <div class="field" style="flex:1"><label>مكافآت / إضافي</label><input class="input" id="prBonus" type="number" value="${p?.bonus || 0}" oninput="calcNet()"></div>
-            <div class="field" style="flex:1"><label>استقطاعات</label><input class="input" id="prDed" type="number" value="${p?.deduction || 0}" oninput="calcNet()"></div>
-            <div class="field" style="flex:1"><label>استرداد سلفة</label><input class="input" id="prAdv" type="number" value="${p?.advance || 0}" oninput="calcNet()"></div>
-        </div>
-        <div class="net-preview"><span>صافي المستحق</span><strong id="prNet">0</strong><small>${getSettings().currency}</small></div>
-        <div class="field"><label>ملاحظة</label><input class="input" id="prNote" value="${p?.note || ''}" placeholder="تفاصيل المكافأة أو الاستقطاع"></div>
-    `, `<button class="btn btn-ghost" onclick="closeModal('dynModal')">إلغاء</button><button class="btn btn-primary" style="flex:1" onclick="savePayroll('${id || ''}')"><i class="bi bi-check2"></i> حفظ القيد</button>`, 'lg');
-    if (!p) syncPayrollRateFromUser(); else { updatePayrollUnitLabel(); calcNet(); }
+        <div class="stat green" style="margin:6px 0"><div class="stat-label">صافي الراتب</div><div class="stat-value" id="prNet">0</div></div>
+        <div class="field"><label>ملاحظة</label><input class="input" id="prNote" value="${p ? p.note : ''}"></div>
+    `, `<button class="btn btn-ghost" onclick="closeModal('dynModal')">إلغاء</button>
+        <button class="btn btn-primary" style="flex:1" onclick="savePayroll('${id || ''}')"><i class="bi bi-check2"></i> حفظ</button>`);
+    if (!p) fillSalaryFromUser();
+    calcNet();
 }
-function syncPayrollRateFromUser() {
-    const u = getUser(document.getElementById('prUser')?.value); if (!u) return;
-    document.getElementById('prCycle').value = u.payCycle || 'monthly';
-    document.getElementById('prRate').value = Number(u.salaryRate || 0);
-    document.getElementById('prUnits').value = 1;
-    updatePayrollUnitLabel(); calcPayrollBase();
-}
-function updatePayrollUnitLabel() {
-    const c = PAY_CYCLES[document.getElementById('prCycle')?.value] || PAY_CYCLES.monthly;
-    const el = document.getElementById('prUnitsLabel'); if (el) el.textContent = `عدد الوحدات (${c.unit})`;
-}
-function calcPayrollBase() {
-    const rate = Number(document.getElementById('prRate')?.value || 0), units = Number(document.getElementById('prUnits')?.value || 0);
-    const el = document.getElementById('prBase'); if (el) el.value = Math.round(rate * units);
+function fillSalaryFromUser() {
+    const sel = document.getElementById('prUser');
+    if (!sel) return;
+    const opt = sel.selectedOptions[0];
+    const base = document.getElementById('prBase');
+    const cyc = document.getElementById('prCycle');
+    if (base && !Number(base.value)) base.value = opt?.dataset.sal || 0;
+    if (cyc && opt?.dataset.cyc) cyc.value = opt.dataset.cyc;
     calcNet();
 }
 function calcNet() {
-    const v = id => Number(document.getElementById(id)?.value || 0);
-    const net = v('prBase') + v('prBonus') - v('prDed') - v('prAdv');
-    const el = document.getElementById('prNet'); if (el) el.textContent = moneyNum(net);
+    const v = (id) => Number(document.getElementById(id)?.value || 0);
+    const net = v('prBase') + v('prBonus') + v('prOt') - v('prDed') - v('prAdv');
+    const el = document.getElementById('prNet');
+    if (el) el.textContent = moneyNum(net);
 }
 function savePayroll(id) {
-    const uId = document.getElementById('prUser').value, u = getUser(uId);
-    const start = document.getElementById('prStart').value, end = document.getElementById('prEnd').value;
-    if (!start || !end || start > end) { toast('تحقق من تاريخ بداية ونهاية الفترة', 'error'); return; }
+    const uId = document.getElementById('prUser').value;
+    const u = getUser(uId);
+    const cycle = document.getElementById('prCycle').value;
+    const period = document.getElementById('prPeriod').value.trim() || periodKey(cycle);
     const data = {
-        userId: uId, userName: u?.name || '-', month: start.slice(0, 7), cycle: document.getElementById('prCycle').value,
-        periodStart: start, periodEnd: end, rate: Number(document.getElementById('prRate').value) || 0,
-        units: Number(document.getElementById('prUnits').value) || 0, base: Number(document.getElementById('prBase').value) || 0,
-        bonus: Number(document.getElementById('prBonus').value) || 0, deduction: Number(document.getElementById('prDed').value) || 0,
-        advance: Number(document.getElementById('prAdv').value) || 0, note: document.getElementById('prNote').value.trim()
+        userId: uId, userName: u ? u.name : '-',
+        cycle, period, month: cycle === 'monthly' ? period : period.slice(0, 7),
+        base: Number(document.getElementById('prBase').value) || 0,
+        overtime: Number(document.getElementById('prOt').value) || 0,
+        bonus: Number(document.getElementById('prBonus').value) || 0,
+        deduction: Number(document.getElementById('prDed').value) || 0,
+        advance: Number(document.getElementById('prAdv').value) || 0,
+        daysWorked: Number(document.getElementById('prDays').value) || 0,
+        note: document.getElementById('prNote').value.trim()
     };
     if (id) api.updatePayroll(id, data); else api.addPayroll(data);
-    _prMonth = data.month; closeModal('dynModal'); renderPayroll(); toast('تم حفظ المستحق ✅', 'success');
+    _prCycle = cycle; _prPeriod = period;
+    if (cycle === 'monthly') _prMonth = period;
+    closeModal('dynModal'); renderPayroll(); toast('تم حفظ القيد ✅', 'success');
 }
 function doPayPayroll(id) {
-    const p = getPayroll().find(x => x.id === id); if (!p || p.paid) return;
-    if (!confirmAction(`صرف ${money(p.net)} إلى ${p.userName}؟ سيُسجّل كمصروف تلقائياً.`)) return;
-    api.payPayroll(id); renderPayroll(); toast('تم الصرف وتسجيله في المصروفات واسترداد السلف المرتبطة ✅', 'success');
+    if (!confirmAction('صرف هذا الراتب؟ سيُسجَّل تلقائياً كمصروف.')) return;
+    api.payPayroll(id); renderPayroll(); toast('تم صرف الراتب وتسجيله كمصروف ✅', 'success');
 }
 function delPayroll(id) {
-    const p = getPayroll().find(x => x.id === id); if (!p) return;
-    if (p.paid && !confirmAction('هذا القيد مصروف فعلياً. حذفه لن يحذف المصروف المالي المرتبط. متابعة؟')) return;
-    if (!p.paid && !confirmAction('حذف هذا القيد؟')) return;
-    api.deletePayroll(id); renderPayroll(); toast('تم حذف القيد', 'success');
+    if (!confirmAction('حذف هذا القيد؟')) return;
+    api.deletePayroll(id); renderPayroll(); toast('تم الحذف', 'success');
 }
 
-/* توليد مستحقات يومية / أسبوعية / شهرية بلا تكرار */
-function generatePayrollMonth() {
+/* توليد كشف حسب دورة كل موظف + الحضور */
+function generatePayrollPeriod() {
     if (!can('payroll')) { denied(); return; }
-    const mr = payrollMonthRange();
-    const todayKey = new Date().toISOString().slice(0, 10);
-    const existing = new Set(getPayroll().filter(p => p.month === _prMonth && p.generatedKey).map(p => p.generatedKey));
-    const pendingAdvances = userId => getSalaryAdvances().filter(a => a.userId === userId && !a.recovered && a.date <= mr.endKey);
-    const drafts = [];
-
-    getUsers().filter(u => u.active !== false).forEach(u => {
-        const cycle = u.payCycle || 'monthly', rate = Number(u.salaryRate || 0);
-        if (rate <= 0) return;
-        if (cycle === 'monthly') {
-            const key = `${u.id}:${_prMonth}:monthly`;
-            if (!existing.has(key)) drafts.push({ u, cycle, rate, units: 1, base: rate, start: mr.startKey, end: mr.endKey, key, label: `شهر ${_prMonth}` });
-        } else if (cycle === 'weekly') {
-            let d = new Date(mr.start);
-            while (d <= mr.end) {
-                const st = new Date(d), en = new Date(d); en.setDate(en.getDate() + 6); if (en > mr.end) en.setTime(mr.end.getTime());
-                const start = mr.key(st), end = mr.key(en), key = `${u.id}:${start}:weekly`;
-                if (!existing.has(key) && (end <= todayKey || _prMonth < todayKey.slice(0,7))) drafts.push({ u, cycle, rate, units: 1, base: rate, start, end, key, label: `${start} ← ${end}` });
-                d.setDate(d.getDate() + 7);
-            }
-        } else {
-            getAttendance().filter(a => a.userId === u.id && a.date?.startsWith(_prMonth) && ['present','late'].includes(a.status)).forEach(a => {
-                const key = `${u.id}:${a.date}:daily`;
-                if (!existing.has(key)) drafts.push({ u, cycle, rate, units: 1, base: rate, start: a.date, end: a.date, key, label: a.date });
-            });
-        }
-    });
-    if (!drafts.length) { toast('لا توجد مستحقات جديدة. تأكد من ضبط الأجور وتسجيل حضور الموظفين اليوميين.', 'info', 5000); return; }
-    if (!confirmAction(`سيتم إنشاء ${drafts.length} دفعة مستحقة محسوبة آلياً لشهر ${_prMonth}. متابعة؟`)) return;
-
-    const advanceAssigned = new Set();
-    drafts.forEach(d => {
-        const advances = advanceAssigned.has(d.u.id) ? [] : pendingAdvances(d.u.id);
-        if (advances.length) advanceAssigned.add(d.u.id);
+    const users = getUsers().filter(u => u.active !== false);
+    let created = 0;
+    users.forEach(u => {
+        const cycle = u.payCycle || 'monthly';
+        if (cycle !== _prCycle) return;
+        const period = _prPeriod;
+        if (getPayroll().some(p => p.userId === u.id && (p.period || p.month) === period && (p.cycle || 'monthly') === cycle)) return;
+        const calc = computePayForUser(u, cycle, period);
         api.addPayroll({
-            userId: d.u.id, userName: d.u.name, month: _prMonth, cycle: d.cycle,
-            periodStart: d.start, periodEnd: d.end, periodLabel: d.label, generatedKey: d.key,
-            rate: d.rate, units: d.units, base: d.base, bonus: 0, deduction: 0,
-            advance: advances.reduce((s, a) => s + Number(a.amount || 0), 0), advanceIds: advances.map(a => a.id)
+            userId: u.id, userName: u.name, cycle, period,
+            month: cycle === 'monthly' ? period : period.slice(0, 7),
+            base: calc.base, deduction: calc.deduction, advance: calc.advance,
+            overtime: calc.overtime, daysWorked: calc.daysWorked, daysExpected: calc.daysExpected,
+            note: calc.note
         });
+        created++;
     });
-    renderPayroll(); toast(`تم توليد ${drafts.length} مستحق بنجاح ✅`, 'success');
+    if (!created) { toast('كل الموظفين لهذه الدورة لديهم قيد، أو لا يوجد موظف بهذه الدورة', 'info'); return; }
+    renderPayroll();
+    toast(`تم توليد ${created} قيد راتب حسب الدورة والحضور ✅`, 'success');
 }
+
+function computePayForUser(u, cycle, period) {
+    const salary = Number(u.salary || 0);
+    const recs = getAttendance().filter(a => a.userId === u.id && attendanceInPeriod(a, cycle, period));
+    const worked = recs.filter(a => a.status === 'present' || a.status === 'late').length;
+    const late = recs.filter(a => a.status === 'late').length;
+    const absent = recs.filter(a => a.status === 'absent').length;
+    const expected = expectedWorkDays(u, cycle, period);
+    const openAdv = getAdvances().filter(a => a.userId === u.id && !a.settled).reduce((s, a) => s + Number(a.amount || 0), 0);
+
+    let base = salary;
+    let deduction = 0;
+    if (cycle === 'daily') {
+        base = salary * Math.max(worked, 0);
+    } else if (cycle === 'weekly') {
+        // إذا الراتب أسبوعي ثابت، نخصم أيام الغياب بنسبة
+        if (expected > 0 && worked < expected) deduction = Math.round(salary * (expected - worked) / expected);
+    } else {
+        if (expected > 0 && worked > 0 && worked < expected) deduction = Math.round(salary * absent / expected);
+        else if (expected > 0 && worked === 0 && recs.length) deduction = salary;
+    }
+    deduction += late * Math.round(salary * 0.01); // 1% عن كل تأخير
+    const overtimeMin = recs.reduce((s, a) => s + Math.max(0, (a.minutes || 0) - 8 * 60), 0);
+    const hourly = cycle === 'daily' ? salary / 8 : salary / Math.max(expected * 8, 1);
+    const overtime = Math.round((overtimeMin / 60) * hourly * 1.5);
+    return {
+        base, deduction, overtime, advance: openAdv,
+        daysWorked: worked, daysExpected: expected,
+        note: `توليد آلي — حضور ${worked}/${expected} • تأخير ${late} • غياب ${absent}`
+    };
+}
+function attendanceInPeriod(a, cycle, period) {
+    if (cycle === 'daily') return a.date === period;
+    if (cycle === 'weekly') return weekKey(new Date(a.date + 'T12:00:00')) === period;
+    return (a.date || '').slice(0, 7) === period;
+}
+function expectedWorkDays(u, cycle, period) {
+    const days = Array.isArray(u.workDays) && u.workDays.length ? u.workDays : [0, 1, 2, 3, 4, 5, 6];
+    if (cycle === 'daily') return 1;
+    if (cycle === 'weekly') return days.length;
+    // أيام الشهر التي توافق أيام دوامه
+    const [y, m] = (period || monthKey()).split('-').map(Number);
+    const last = new Date(y, m, 0).getDate();
+    let n = 0;
+    for (let d = 1; d <= last; d++) {
+        const dt = new Date(y, m - 1, d);
+        if (days.includes(dt.getDay())) n++;
+    }
+    return n;
+}
+
 function printPayroll() {
-    const list = getPayroll().filter(p => p.month === _prMonth);
-    const rows = list.map(p => `<tr><td>${p.userName}</td><td>${PAY_CYCLES[p.cycle || 'monthly'].label}</td><td>${payrollPeriodLabel(p)}</td><td>${moneyNum(p.base)}</td><td>${moneyNum(p.bonus)}</td><td>${moneyNum(p.deduction)}</td><td>${moneyNum(p.advance)}</td><td><strong>${moneyNum(p.net)}</strong></td><td>${p.paid ? 'مصروف' : 'معلّق'}</td></tr>`).join('') || `<tr><td colspan="9">لا توجد قيود</td></tr>`;
-    const total = list.reduce((s, p) => s + Number(p.net || 0), 0);
-    printElement(reportShell('كشف مستحقات ورواتب الموظفين', `<table class="rep-tbl"><thead><tr><th>الموظف</th><th>النظام</th><th>الفترة</th><th>الأساسي</th><th>مكافآت</th><th>استقطاع</th><th>سلف</th><th>الصافي</th><th>الحالة</th></tr></thead><tbody>${rows}<tr><td colspan="7" style="font-weight:900">الإجمالي</td><td style="font-weight:900">${moneyNum(total)}</td><td></td></tr></tbody></table>`, `شهر العمل: ${_prMonth}`));
+    const list = getPayroll().filter(p => (p.period || p.month) === _prPeriod || (_prCycle === 'monthly' && p.month === _prMonth));
+    const rows = list.map(p => `<tr>
+        <td>${p.userName}</td><td>${PAY_CYCLE[p.cycle]?.label || ''}</td>
+        <td>${moneyNum(p.base)}</td><td>${moneyNum(p.overtime || 0)}</td><td>${moneyNum(p.bonus)}</td>
+        <td>${moneyNum(p.deduction)}</td><td>${moneyNum(p.advance)}</td>
+        <td><strong>${moneyNum(p.net)}</strong></td><td>${p.paid ? 'مصروف' : 'معلّق'}</td></tr>`).join('')
+        || `<tr><td colspan="9">لا توجد قيود</td></tr>`;
+    const total = list.reduce((s, p) => s + p.net, 0);
+    printElement(reportShell('كشف رواتب الموظفين', `
+        <table class="rep-tbl">
+            <thead><tr><th>الموظف</th><th>الدورة</th><th>الأساسي</th><th>إضافي</th><th>مكافآت</th><th>استقطاع</th><th>سلف</th><th>الصافي</th><th>الحالة</th></tr></thead>
+            <tbody>${rows}<tr><td colspan="7" style="font-weight:900">الإجمالي</td><td style="font-weight:900">${moneyNum(total)}</td><td></td></tr></tbody>
+        </table>`, `${PAY_CYCLE[_prCycle]?.label || ''} — ${_prPeriod}`));
+}
+function printPayslip(id) {
+    const p = getPayroll().find(x => x.id === id); if (!p) return;
+    printElement(reportShell(`قسيمة راتب — ${p.userName}`, `
+        <table class="rep-tbl"><tbody>
+            <tr><td>الموظف</td><td>${p.userName}</td></tr>
+            <tr><td>الدورة</td><td>${PAY_CYCLE[p.cycle]?.label || 'شهري'}</td></tr>
+            <tr><td>الفترة</td><td>${p.period || p.month}</td></tr>
+            <tr><td>الأساسي</td><td>${moneyNum(p.base)}</td></tr>
+            <tr><td>إضافي</td><td>${moneyNum(p.overtime || 0)}</td></tr>
+            <tr><td>مكافآت</td><td>${moneyNum(p.bonus)}</td></tr>
+            <tr><td>استقطاعات</td><td>${moneyNum(p.deduction)}</td></tr>
+            <tr><td>سلف</td><td>${moneyNum(p.advance)}</td></tr>
+            <tr><td>أيام العمل</td><td>${p.daysWorked || 0} / ${p.daysExpected || '-'}</td></tr>
+            <tr><td style="font-weight:900">الصافي</td><td style="font-weight:900">${moneyNum(p.net)}</td></tr>
+            <tr><td>الحالة</td><td>${p.paid ? 'مصروف في ' + fmtDateTime(p.paidAt) : 'معلّق'}</td></tr>
+            ${p.note ? `<tr><td>ملاحظة</td><td>${p.note}</td></tr>` : ''}
+        </tbody></table>`, 'قسيمة راتب رسمية'));
 }
 
-/* ============ ملفات الأجر والعقود ============ */
-function renderPayProfiles(box) {
-    const users = getUsers();
+/* ============ الحضور ============ */
+function renderAttendTab(box) {
+    const users = getUsers().filter(u => u.active !== false);
+    const recs = getAttendance().filter(a => a.date === _attDate);
+    const byUser = id => recs.find(a => a.userId === id);
     box.innerHTML = `
-        <div class="toolbar"><div class="payroll-guide"><i class="bi bi-info-circle"></i><span>حدد طريقة احتساب كل موظف. يستخدمها التوليد الذكي ولا يغيّر صلاحيات دخوله.</span></div></div>
-        <div class="pay-profile-grid">${users.map(u => {
-            const c = PAY_CYCLES[u.payCycle || 'monthly'];
-            const att = getAttendance().filter(a => a.userId === u.id && a.date?.startsWith(_prMonth) && ['present','late'].includes(a.status));
-            return `<div class="pay-profile-card">
-                <div class="pp-head"><div class="uc-avatar">${u.avatar || '🧑'}</div><div><strong>${u.name}</strong><span>${u.jobTitle || ROLE_LABEL[u.role]}</span></div><span class="badge badge-gold"><i class="bi ${c.icon}"></i> ${c.label}</span></div>
-                <div class="pp-rate"><span>الأجر لكل ${c.unit}</span><strong>${money(u.salaryRate || 0)}</strong></div>
-                <div class="pp-meta"><span><i class="bi bi-clock"></i> ${u.shiftHours || 8} ساعات / وردية</span><span><i class="bi bi-calendar-check"></i> ${att.length} حضور هذا الشهر</span></div>
-                <button class="btn btn-light btn-block" onclick="openPayProfile('${u.id}')"><i class="bi bi-pencil-square"></i> تعديل نظام الأجر</button>
-            </div>`;
-        }).join('')}</div>`;
-}
-function openPayProfile(userId) {
-    const u = getUser(userId); if (!u) return;
-    openModalContent(`نظام أجر — ${u.name}`, `
-        <div class="profile-pay-banner"><span>${u.avatar || '🧑'}</span><div><strong>${u.name}</strong><small>${u.jobTitle || ''}</small></div></div>
-        <div class="field"><label>دورية الأجر</label><div class="cycle-picker">${Object.entries(PAY_CYCLES).map(([k,c]) => `<label class="cycle-option"><input type="radio" name="profileCycle" value="${k}" ${(u.payCycle || 'monthly') === k ? 'checked' : ''}><span><i class="bi ${c.icon}"></i><b>${c.label}</b><small>أجر لكل ${c.unit}</small></span></label>`).join('')}</div></div>
-        <div class="row-flex"><div class="field" style="flex:1"><label>قيمة الأجر (د.ع)</label><input class="input" id="profileRate" type="number" value="${u.salaryRate || 0}"></div><div class="field" style="flex:1"><label>ساعات الوردية القياسية</label><input class="input" id="profileHours" type="number" min="1" max="24" value="${u.shiftHours || 8}"></div></div>
-        <div class="role-hint"><i class="bi bi-lightbulb"></i> اليومي يحتاج سجل حضور ليُنشأ مستحقه. الأسبوعي ينشئ دفعة لكل 7 أيام، والشهري ينشئ دفعة واحدة.</div>
-    `, `<button class="btn btn-ghost" onclick="closeModal('dynModal')">إلغاء</button><button class="btn btn-primary" style="flex:1" onclick="savePayProfile('${u.id}')"><i class="bi bi-check2"></i> حفظ النظام</button>`);
-}
-function savePayProfile(userId) {
-    const cycle = document.querySelector('input[name="profileCycle"]:checked')?.value || 'monthly';
-    const rate = Math.max(0, Number(document.getElementById('profileRate').value) || 0), hours = Math.max(1, Number(document.getElementById('profileHours').value) || 8);
-    if (!rate) { toast('أدخل قيمة الأجر', 'error'); return; }
-    api.updateUser(userId, { payCycle: cycle, salaryRate: rate, shiftHours: hours });
-    closeModal('dynModal'); renderPayroll(); toast('تم تحديث نظام الأجر ✅', 'success');
-}
-
-/* ============ الحضور والانصراف ============ */
-function renderAttendanceTab(box) {
-    const list = getAttendance().filter(a => a.date?.startsWith(_prMonth)).sort((a,b) => (b.date + b.checkIn).localeCompare(a.date + a.checkIn));
-    const today = new Date().toISOString().slice(0,10), me = currentUser();
-    const todayMine = getAttendance().find(a => a.userId === me?.id && a.date === today);
-    const present = list.filter(a => ['present','late'].includes(a.status)).length;
-    const hours = list.reduce((s,a) => s + attendanceHours(a), 0);
-    const late = list.reduce((s,a) => s + Number(a.lateMinutes || 0), 0);
-    box.innerHTML = `
-        <div class="attendance-actions">
-            <div><strong>بصمة اليوم — ${today}</strong><span>${todayMine ? `دخول ${todayMine.checkIn || '—'} ${todayMine.checkOut ? '• خروج ' + todayMine.checkOut : '• لم يسجل خروج'}` : 'لم تسجل حضورك اليوم'}</span></div>
-            ${!todayMine ? `<button class="btn btn-success" onclick="quickAttendanceIn()"><i class="bi bi-box-arrow-in-left"></i> تسجيل دخول الآن</button>` : !todayMine.checkOut ? `<button class="btn btn-danger" onclick="quickAttendanceOut('${todayMine.id}')"><i class="bi bi-box-arrow-right"></i> تسجيل خروج الآن</button>` : '<span class="badge badge-success"><i class="bi bi-check2-circle"></i> مكتملة</span>'}
+        <div class="toolbar">
+            <div class="field" style="margin:0;min-width:180px"><input class="input" type="date" value="${_attDate}" onchange="_attDate=this.value;renderPayroll()"></div>
+            <button class="btn btn-success" onclick="doMyClock('in')"><i class="bi bi-box-arrow-in-right"></i> تسجيل حضوري</button>
+            <button class="btn btn-dark" onclick="doMyClock('out')"><i class="bi bi-box-arrow-right"></i> تسجيل انصرافي</button>
+            <div class="spacer"></div>
+            <button class="btn btn-light" onclick="printAttendance()"><i class="bi bi-printer"></i> كشف اليوم</button>
+            <button class="btn btn-primary" data-perm="payroll" onclick="guard('payroll', () => openAttendForm())"><i class="bi bi-plus-lg"></i> قيد يدوي</button>
         </div>
-        <div class="stats-grid compact-stats"><div class="stat"><div class="stat-label">أيام حضور</div><div class="stat-value">${present}</div></div><div class="stat green"><div class="stat-label">ساعات مسجلة</div><div class="stat-value">${hours}</div></div><div class="stat gold"><div class="stat-label">دقائق تأخير</div><div class="stat-value">${late}</div></div><div class="stat blue"><div class="stat-label">غياب وإجازات</div><div class="stat-value">${list.filter(a=>['absent','leave','sick'].includes(a.status)).length}</div></div></div>
-        <div class="toolbar"><div class="spacer"></div><button class="btn btn-primary" onclick="openAttendanceForm()"><i class="bi bi-plus-lg"></i> سجل حضور يدوي</button></div>
-        <div class="card"><div class="table-wrap"><table class="tbl"><thead><tr><th>الموظف</th><th>التاريخ</th><th>الدخول</th><th>الخروج</th><th>الساعات</th><th>التأخير</th><th>الإضافي</th><th>الحالة</th><th>ملاحظة</th><th></th></tr></thead><tbody>
-        ${list.length ? list.map(a => { const st = ATTENDANCE_STATUS[a.status] || ATTENDANCE_STATUS.present; return `<tr><td><strong>${a.userName}</strong></td><td>${a.date}</td><td>${a.checkIn || '—'}</td><td>${a.checkOut || '—'}</td><td><strong>${attendanceHours(a)}</strong></td><td>${a.lateMinutes || 0} د</td><td>${a.overtimeMinutes || 0} د</td><td><span class="badge ${st.cls}">${st.label}</span></td><td>${a.note || '—'}</td><td><div style="display:flex;gap:5px"><button class="icon-btn action-edit" onclick="openAttendanceForm('${a.id}')"><i class="bi bi-pencil"></i></button><button class="icon-btn action-danger" onclick="deleteAttendance('${a.id}')"><i class="bi bi-trash"></i></button></div></td></tr>`; }).join('') : '<tr><td colspan="10"><div class="empty-state"><i class="bi bi-fingerprint"></i><p>لا توجد سجلات حضور في هذا الشهر</p></div></td></tr>'}
-        </tbody></table></div></div>`;
+        <div class="card">
+            <div class="table-wrap">
+                <table class="tbl">
+                    <thead><tr><th>الموظف</th><th>الدورة / الراتب</th><th>الحضور</th><th>الانصراف</th><th>المدة</th><th>الحالة</th><th></th></tr></thead>
+                    <tbody>${users.map(u => {
+                        const a = byUser(u.id);
+                        const st = a ? (ATT_STATUS[a.status] || ATT_STATUS.present) : { label: 'لم يسجّل', cls: 'badge-dark' };
+                        return `<tr>
+                            <td><strong>${u.avatar || ''} ${u.name}</strong><div style="font-size:11px;color:var(--muted)">${u.jobTitle || ROLE_LABEL[u.role] || ''}</div></td>
+                            <td>${PAY_CYCLE[u.payCycle || 'monthly']?.label || 'شهري'} • ${moneyNum(u.salary || 0)}</td>
+                            <td>${a?.inAt ? fmtTime(a.inAt) : '—'}</td>
+                            <td>${a?.outAt ? fmtTime(a.outAt) : '—'}</td>
+                            <td>${a?.minutes ? Math.floor(a.minutes / 60) + 'س ' + (a.minutes % 60) + 'د' : '—'}</td>
+                            <td><span class="badge ${st.cls}">${st.label}</span></td>
+                            <td>${a ? `<button class="icon-btn" style="width:30px;height:30px;font-size:13px" onclick="delAttend('${a.id}')"><i class="bi bi-trash"></i></button>` : `<button class="btn btn-light btn-sm" onclick="markAbsent('${u.id}')">غياب</button>`}</td>
+                        </tr>`;
+                    }).join('')}</tbody>
+                </table>
+            </div>
+        </div>`;
+    applyPermissions();
 }
-function quickAttendanceIn() {
-    const u = currentUser(), now = new Date(); if (!u) return;
-    const time = now.toTimeString().slice(0,5), date = now.toISOString().slice(0,10);
-    if (getAttendance().some(a => a.userId === u.id && a.date === date)) { toast('تم تسجيل حضورك اليوم مسبقاً', 'info'); return; }
-    api.addAttendance({ userId: u.id, userName: u.name, date, checkIn: time, status: 'present' }); renderPayroll(); toast(`تم تسجيل الدخول ${time} ✅`, 'success');
+function doMyClock(kind) {
+    const u = currentUser(); if (!u) return;
+    if (kind === 'in') {
+        const rec = api.clockIn(u.id);
+        if (rec) { toast(rec.status === 'late' ? 'تم تسجيل الحضور — متأخر ⏰' : 'تم تسجيل الحضور ✅', rec.status === 'late' ? 'warning' : 'success'); }
+    } else {
+        const rec = api.clockOut(u.id);
+        if (rec) toast(`تم تسجيل الانصراف — ${rec.minutes} دقيقة`, 'success');
+    }
+    if (typeof refreshClockBtn === 'function') refreshClockBtn();
+    if (_prTab === 'attend') renderPayroll();
 }
-function quickAttendanceOut(id) {
-    const a = getAttendance().find(x => x.id === id); if (!a) return;
-    const time = new Date().toTimeString().slice(0,5); api.updateAttendance(id, { checkOut: time }); renderPayroll(); toast(`تم تسجيل الخروج ${time} ✅`, 'success');
+function markAbsent(userId) {
+    const u = getUser(userId); if (!u) return;
+    if (todayAttendance(userId)) { toast('لديه سجل اليوم', 'warning'); return; }
+    api.addAttendance({ userId, userName: u.name, date: _attDate, status: 'absent' });
+    renderPayroll(); toast('سُجّل غياب', 'info');
 }
-function openAttendanceForm(id) {
-    const a = id ? getAttendance().find(x => x.id === id) : null;
-    openModalContent(a ? 'تعديل سجل الحضور' : 'إضافة حضور / غياب', `
-        <div class="row-flex"><div class="field" style="flex:2"><label>الموظف</label><select class="input" id="attUser">${getUsers().map(u=>`<option value="${u.id}" ${a?.userId===u.id?'selected':''}>${u.avatar||''} ${u.name}</option>`).join('')}</select></div><div class="field" style="flex:1"><label>التاريخ</label><input class="input" id="attDate" type="date" value="${a?.date || new Date().toISOString().slice(0,10)}"></div></div>
-        <div class="row-flex"><div class="field" style="flex:1"><label>وقت الدخول</label><input class="input" id="attIn" type="time" value="${a?.checkIn || '09:00'}"></div><div class="field" style="flex:1"><label>وقت الخروج</label><input class="input" id="attOut" type="time" value="${a?.checkOut || '17:00'}"></div><div class="field" style="flex:1"><label>الحالة</label><select class="input" id="attStatus">${Object.entries(ATTENDANCE_STATUS).map(([k,v])=>`<option value="${k}" ${a?.status===k?'selected':''}>${v.label}</option>`).join('')}</select></div></div>
-        <div class="row-flex"><div class="field" style="flex:1"><label>دقائق التأخير</label><input class="input" id="attLate" type="number" min="0" value="${a?.lateMinutes || 0}"></div><div class="field" style="flex:1"><label>دقائق العمل الإضافي</label><input class="input" id="attOver" type="number" min="0" value="${a?.overtimeMinutes || 0}"></div></div>
-        <div class="field"><label>ملاحظة</label><input class="input" id="attNote" value="${a?.note || ''}" placeholder="سبب الغياب أو التأخير"></div>
-    `, `<button class="btn btn-ghost" onclick="closeModal('dynModal')">إلغاء</button><button class="btn btn-primary" style="flex:1" onclick="saveAttendance('${id || ''}')"><i class="bi bi-check2"></i> حفظ</button>`);
+function openAttendForm() {
+    openModalContent('قيد حضور يدوي', `
+        <div class="field"><label>الموظف</label>
+            <select class="input" id="atUser">${getUsers().map(u => `<option value="${u.id}">${u.name}</option>`).join('')}</select></div>
+        <div class="row-flex">
+            <div class="field" style="flex:1"><label>التاريخ</label><input class="input" id="atDate" type="date" value="${_attDate}"></div>
+            <div class="field" style="flex:1"><label>الحالة</label>
+                <select class="input" id="atSt">${Object.entries(ATT_STATUS).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('')}</select></div>
+        </div>
+        <div class="row-flex">
+            <div class="field" style="flex:1"><label>وقت الحضور</label><input class="input" id="atIn" type="time" value="${getSettings().workStart || '09:00'}"></div>
+            <div class="field" style="flex:1"><label>وقت الانصراف</label><input class="input" id="atOut" type="time" value="${getSettings().workEnd || '23:00'}"></div>
+        </div>
+        <div class="field"><label>ملاحظة</label><input class="input" id="atNote"></div>
+    `, `<button class="btn btn-ghost" onclick="closeModal('dynModal')">إلغاء</button>
+        <button class="btn btn-primary" style="flex:1" onclick="saveAttendManual()"><i class="bi bi-check2"></i> حفظ</button>`);
 }
-function saveAttendance(id) {
-    const userId = document.getElementById('attUser').value, u = getUser(userId), date = document.getElementById('attDate').value;
-    if (!date) { toast('حدد التاريخ', 'error'); return; }
-    if (!id && getAttendance().some(a => a.userId === userId && a.date === date)) { toast('يوجد سجل لهذا الموظف في نفس اليوم', 'warning'); return; }
-    const data = { userId, userName: u?.name || '-', date, checkIn: document.getElementById('attIn').value, checkOut: document.getElementById('attOut').value, status: document.getElementById('attStatus').value, lateMinutes: Number(document.getElementById('attLate').value)||0, overtimeMinutes: Number(document.getElementById('attOver').value)||0, note: document.getElementById('attNote').value.trim() };
-    if (id) api.updateAttendance(id, data); else api.addAttendance(data);
-    _prMonth = date.slice(0,7); closeModal('dynModal'); renderPayroll(); toast('تم حفظ الحضور ✅', 'success');
+function saveAttendManual() {
+    const u = getUser(document.getElementById('atUser').value);
+    const date = document.getElementById('atDate').value;
+    const st = document.getElementById('atSt').value;
+    const toTs = (t) => {
+        if (!t) return null;
+        const [h, m] = t.split(':').map(Number);
+        const d = new Date(date + 'T00:00:00'); d.setHours(h, m, 0, 0); return d.getTime();
+    };
+    api.addAttendance({
+        userId: u.id, userName: u.name, date, status: st,
+        inAt: st === 'absent' || st === 'leave' ? null : toTs(document.getElementById('atIn').value),
+        outAt: st === 'absent' || st === 'leave' ? null : toTs(document.getElementById('atOut').value),
+        note: document.getElementById('atNote').value.trim()
+    });
+    _attDate = date;
+    closeModal('dynModal'); renderPayroll(); toast('تم حفظ القيد', 'success');
 }
-function deleteAttendance(id) { if (!confirmAction('حذف سجل الحضور؟')) return; api.deleteAttendance(id); renderPayroll(); }
+function delAttend(id) {
+    if (!confirmAction('حذف قيد الحضور؟')) return;
+    api.deleteAttendance(id); renderPayroll();
+}
+function printAttendance() {
+    const recs = getAttendance().filter(a => a.date === _attDate);
+    printElement(reportShell('كشف الحضور', `
+        <table class="rep-tbl"><thead><tr><th>الموظف</th><th>حضور</th><th>انصراف</th><th>المدة</th><th>الحالة</th></tr></thead>
+        <tbody>${recs.map(a => `<tr><td>${a.userName}</td><td>${a.inAt ? fmtTime(a.inAt) : '-'}</td><td>${a.outAt ? fmtTime(a.outAt) : '-'}</td><td>${a.minutes || 0} د</td><td>${ATT_STATUS[a.status]?.label || a.status}</td></tr>`).join('') || '<tr><td colspan="5">لا سجلات</td></tr>'}</tbody></table>`, _attDate));
+}
 
 /* ============ السلف ============ */
 function renderAdvancesTab(box) {
-    const list = getSalaryAdvances().slice().sort((a,b)=>b.createdAt-a.createdAt), open = list.filter(a=>!a.recovered), recovered = list.filter(a=>a.recovered);
+    const list = getAdvances();
+    const open = list.filter(a => !a.settled).reduce((s, a) => s + Number(a.amount || 0), 0);
     box.innerHTML = `
-        <div class="advance-summary"><div><span>سلف قيد الاسترداد</span><strong>${money(open.reduce((s,a)=>s+Number(a.amount||0),0))}</strong></div><div><span>عدد الموظفين المدينين</span><strong>${new Set(open.map(a=>a.userId)).size}</strong></div><div><span>تم استرداده</span><strong>${money(recovered.reduce((s,a)=>s+Number(a.amount||0),0))}</strong></div><button class="btn btn-primary" onclick="openAdvanceForm()"><i class="bi bi-plus-lg"></i> منح سلفة</button></div>
-        <div class="card"><div class="table-wrap"><table class="tbl"><thead><tr><th>الموظف</th><th>المبلغ</th><th>تاريخ المنح</th><th>الحالة</th><th>قيد الراتب</th><th>ملاحظة</th><th></th></tr></thead><tbody>
-        ${list.length ? list.map(a=>`<tr><td><strong>${a.userName}</strong></td><td><strong>${moneyNum(a.amount)}</strong></td><td>${a.date}</td><td><span class="badge ${a.recovered?'badge-success':'badge-warning'}">${a.recovered?'مستردة':'تُخصم من المستحق القادم'}</span></td><td>${a.payrollId ? `<button class="btn btn-light btn-sm" onclick="_prTab='payroll';renderPayroll()"><i class="bi bi-receipt"></i> مرتبط</button>` : '—'}</td><td>${a.note||'—'}</td><td>${!a.recovered?`<button class="icon-btn action-danger" onclick="deleteAdvance('${a.id}')"><i class="bi bi-trash"></i></button>`:''}</td></tr>`).join('') : '<tr><td colspan="7"><div class="empty-state"><i class="bi bi-wallet2"></i><p>لا توجد سلف مسجلة</p></div></td></tr>'}
-        </tbody></table></div></div>`;
+        <div class="toolbar">
+            <span class="badge badge-warning">سلف معلّقة: ${moneyNum(open)}</span>
+            <div class="spacer"></div>
+            <button class="btn btn-primary" data-perm="payroll" onclick="guard('payroll', () => openAdvanceForm())"><i class="bi bi-plus-lg"></i> سلفة جديدة</button>
+        </div>
+        <div class="card">
+            <div class="table-wrap">
+                <table class="tbl">
+                    <thead><tr><th>الموظف</th><th>المبلغ</th><th>التاريخ</th><th>ملاحظة</th><th>الحالة</th><th></th></tr></thead>
+                    <tbody>${list.length ? list.map(a => `<tr>
+                        <td><strong>${a.userName}</strong></td>
+                        <td><strong style="color:var(--warning)">${moneyNum(a.amount)}</strong></td>
+                        <td>${a.date}</td>
+                        <td>${a.note || '-'}</td>
+                        <td><span class="badge ${a.settled ? 'badge-success' : 'badge-warning'}">${a.settled ? 'مخصومة' : 'معلّقة'}</span></td>
+                        <td><div style="display:flex;gap:5px">
+                            ${!a.settled ? `<button class="btn btn-light btn-sm" onclick="api.settleAdvance('${a.id}');renderPayroll();toast('تم تعليم السلفة كمخصومة','success')">خصمها</button>` : ''}
+                            <button class="icon-btn" style="width:30px;height:30px;font-size:13px" onclick="if(confirmAction('حذف؟')){api.deleteAdvance('${a.id}');renderPayroll()}"><i class="bi bi-trash"></i></button>
+                        </div></td>
+                    </tr>`).join('') : `<tr><td colspan="6"><div class="empty-state"><i class="bi bi-piggy-bank"></i><p>لا توجد سلف</p></div></td></tr>`}</tbody>
+                </table>
+            </div>
+        </div>`;
+    applyPermissions();
 }
 function openAdvanceForm() {
-    openModalContent('منح سلفة موظف', `<div class="field"><label>الموظف</label><select class="input" id="advUser">${getUsers().filter(u=>u.active!==false).map(u=>`<option value="${u.id}">${u.avatar||''} ${u.name}</option>`).join('')}</select></div><div class="row-flex"><div class="field" style="flex:1"><label>المبلغ</label><input class="input" id="advAmount" type="number" min="1" placeholder="د.ع"></div><div class="field" style="flex:1"><label>التاريخ</label><input class="input" id="advDate" type="date" value="${new Date().toISOString().slice(0,10)}"></div></div><div class="field"><label>السبب / الملاحظة</label><input class="input" id="advNote" placeholder="اختياري"></div><div class="role-hint"><i class="bi bi-info-circle"></i> ستُسجل كحركة نقدية في المصروفات، ثم تظهر تلقائياً كاستقطاع في أول مستحق قادم وتُغلق عند صرفه.</div>`, `<button class="btn btn-ghost" onclick="closeModal('dynModal')">إلغاء</button><button class="btn btn-primary" style="flex:1" onclick="saveAdvance()"><i class="bi bi-check2"></i> تسجيل السلفة</button>`);
+    openModalContent('سلفة موظف', `
+        <div class="field"><label>الموظف</label>
+            <select class="input" id="avUser">${getUsers().map(u => `<option value="${u.id}">${u.name}</option>`).join('')}</select></div>
+        <div class="row-flex">
+            <div class="field" style="flex:1"><label>المبلغ</label><input class="input" id="avAmt" type="number" value="0"></div>
+            <div class="field" style="flex:1"><label>التاريخ</label><input class="input" id="avDate" type="date" value="${todayKey()}"></div>
+        </div>
+        <div class="field"><label>ملاحظة</label><input class="input" id="avNote" placeholder="سبب السلفة"></div>
+    `, `<button class="btn btn-ghost" onclick="closeModal('dynModal')">إلغاء</button>
+        <button class="btn btn-primary" style="flex:1" onclick="saveAdvance()"><i class="bi bi-check2"></i> حفظ</button>`);
 }
 function saveAdvance() {
-    const userId=document.getElementById('advUser').value,u=getUser(userId),amount=Math.max(0,Number(document.getElementById('advAmount').value)||0);
-    if (!amount) { toast('أدخل مبلغ السلفة', 'error'); return; }
-    api.addSalaryAdvance({userId,userName:u?.name||'-',amount,date:document.getElementById('advDate').value,note:document.getElementById('advNote').value.trim()}); closeModal('dynModal');renderPayroll();toast('تم تسجيل السلفة وستُخصم من المستحق القادم','success');
+    const u = getUser(document.getElementById('avUser').value);
+    const amount = Number(document.getElementById('avAmt').value) || 0;
+    if (!amount) { toast('أدخل المبلغ', 'error'); return; }
+    api.addAdvance({ userId: u.id, userName: u.name, amount, date: document.getElementById('avDate').value, note: document.getElementById('avNote').value.trim() });
+    closeModal('dynModal'); renderPayroll(); toast('تم تسجيل السلفة', 'success');
 }
-function deleteAdvance(id){if(!confirmAction('حذف السلفة غير المستردة؟'))return;api.deleteSalaryAdvance(id);renderPayroll();}
 
 /* ============ سجل الهدر ============ */
 const WASTE_REASONS = ['تالف', 'انتهت الصلاحية', 'خطأ تحضير', 'إرجاع عميل', 'كسر', 'ضيافة/مجاناً', 'أخرى'];
+
 function renderWasteTab(box) {
-    const list = getWastes().filter(w => new Date(w.createdAt).toISOString().slice(0,7) === _prMonth);
-    const totalCost = list.reduce((s,w)=>s+Number(w.cost||0),0), byReason={}; list.forEach(w=>byReason[w.reason]=(byReason[w.reason]||0)+Number(w.cost||0));
-    box.innerHTML=`<div class="toolbar"><div class="filter-pills">${Object.entries(byReason).sort((a,b)=>b[1]-a[1]).slice(0,4).map(([r,v])=>`<span class="pill">${r}: ${moneyNum(v)}</span>`).join('')}</div><div class="spacer"></div><button class="btn btn-danger" data-perm="waste" onclick="guard('waste',()=>openWasteForm())"><i class="bi bi-plus-lg"></i> تسجيل هدر</button></div><div class="card"><div class="table-wrap"><table class="tbl"><thead><tr><th>الصنف</th><th>الكمية</th><th>السبب</th><th>الكلفة</th><th>المستخدم</th><th>التاريخ</th><th>ملاحظة</th><th></th></tr></thead><tbody>${list.length?list.map(w=>`<tr><td><strong>${w.productName}</strong></td><td>${w.qty}</td><td><span class="badge badge-warning">${w.reason}</span></td><td style="color:var(--danger);font-weight:800">${moneyNum(w.cost)}</td><td>${w.userName}</td><td>${fmtDateTime(w.createdAt)}</td><td>${w.note||'—'}</td><td><button class="icon-btn action-danger" onclick="delWaste('${w.id}')"><i class="bi bi-trash"></i></button></td></tr>`).join(''):`<tr><td colspan="8"><div class="empty-state"><i class="bi bi-trash3"></i><p>لا يوجد هدر مسجل في هذا الشهر — ممتاز!</p></div></td></tr>`}</tbody>${list.length?`<tfoot><tr><td colspan="3"><strong>الإجمالي</strong></td><td colspan="5"><strong style="color:var(--danger)">${moneyNum(totalCost)}</strong></td></tr></tfoot>`:''}</table></div></div>`; applyPermissions();
+    const list = getWastes();
+    const totalCost = list.reduce((s, w) => s + Number(w.cost || 0), 0);
+    const byReason = {};
+    list.forEach(w => { byReason[w.reason] = (byReason[w.reason] || 0) + Number(w.cost || 0); });
+    const top = Object.entries(byReason).sort((a, b) => b[1] - a[1]).slice(0, 4);
+
+    box.innerHTML = `
+        <div class="toolbar">
+            <div class="filter-pills">
+                ${top.map(([r, v]) => `<span class="pill">${r}: ${moneyNum(v)}</span>`).join('')}
+            </div>
+            <div class="spacer"></div>
+            <button class="btn btn-danger" data-perm="waste" onclick="guard('waste', () => openWasteForm())"><i class="bi bi-plus-lg"></i> تسجيل هدر</button>
+        </div>
+        <div class="card">
+            <div class="table-wrap">
+                <table class="tbl">
+                    <thead><tr><th>الصنف</th><th>الكمية</th><th>السبب</th><th>الكلفة</th><th>المستخدم</th><th>التاريخ</th><th>ملاحظة</th><th></th></tr></thead>
+                    <tbody>${list.length ? list.map(w => `<tr>
+                        <td><strong>${w.productName}</strong></td>
+                        <td>${w.qty}</td>
+                        <td><span class="badge badge-warning">${w.reason}</span></td>
+                        <td style="color:var(--danger);font-weight:800">${moneyNum(w.cost)}</td>
+                        <td>${w.userName}</td>
+                        <td style="font-size:12.5px">${fmtDateTime(w.createdAt)}</td>
+                        <td style="font-size:12.5px;color:var(--muted)">${w.note || '-'}</td>
+                        <td><button class="icon-btn" style="width:30px;height:30px;font-size:13px" data-perm="waste" onclick="delWaste('${w.id}')"><i class="bi bi-trash"></i></button></td>
+                    </tr>`).join('') : `<tr><td colspan="8"><div class="empty-state"><i class="bi bi-trash3"></i><p>لا يوجد هدر مسجل — ممتاز! 👌</p></div></td></tr>`}</tbody>
+                    ${list.length ? `<tfoot><tr><td colspan="3" style="font-weight:900">إجمالي كلفة الهدر</td><td colspan="5" style="font-weight:900;color:var(--danger)">${moneyNum(totalCost)}</td></tr></tfoot>` : ''}
+                </table>
+            </div>
+        </div>`;
+    applyPermissions();
 }
-function openWasteForm(){openModalContent('تسجيل هدر / تالف',`<div class="field"><label>الصنف *</label><select class="input" id="wsProd" onchange="wsCalc()">${getProducts().map(p=>`<option value="${p.id}" data-cost="${p.cost||0}">${p.emoji||''} ${p.name} (متوفر: ${Number(p.stock||0)})</option>`).join('')}</select></div><div class="row-flex"><div class="field" style="flex:1"><label>الكمية</label><input class="input" id="wsQty" type="number" value="1" min="1" oninput="wsCalc()"></div><div class="field" style="flex:1"><label>السبب</label><select class="input" id="wsReason">${WASTE_REASONS.map(r=>`<option>${r}</option>`).join('')}</select></div><div class="field" style="flex:1"><label>الكلفة المقدّرة</label><input class="input" id="wsCost" type="number" value="0"></div></div><div class="field"><label>ملاحظة</label><input class="input" id="wsNote"></div><p class="form-warning">سيتم خصم الكمية من المخزون تلقائياً.</p>`,`<button class="btn btn-ghost" onclick="closeModal('dynModal')">إلغاء</button><button class="btn btn-danger" style="flex:1" onclick="saveWaste()"><i class="bi bi-check2"></i> تسجيل الهدر</button>`);wsCalc();}
-function wsCalc(){const sel=document.getElementById('wsProd'),cost=Number(sel?.selectedOptions[0]?.dataset.cost||0),qty=Number(document.getElementById('wsQty')?.value||0),el=document.getElementById('wsCost');if(el)el.value=cost*qty;}
-function saveWaste(){const pid=document.getElementById('wsProd').value,p=getProduct(pid);if(!p){toast('اختر صنفاً','error');return;}api.addWaste({productId:pid,productName:p.name,qty:Number(document.getElementById('wsQty').value)||1,reason:document.getElementById('wsReason').value,cost:Number(document.getElementById('wsCost').value)||0,note:document.getElementById('wsNote').value.trim()});closeModal('dynModal');renderPayroll();toast('تم تسجيل الهدر وخصمه من المخزون','success');}
-function delWaste(id){if(!confirmAction('حذف هذا القيد؟ (لن تعاد الكمية للمخزون)'))return;api.deleteWaste(id);renderPayroll();toast('تم الحذف','success');}
+function openWasteForm() {
+    openModalContent('تسجيل هدر / تالف', `
+        <div class="field"><label>الصنف *</label>
+            <select class="input" id="wsProd" onchange="wsCalc()">
+                ${getProducts().map(p => `<option value="${p.id}" data-cost="${p.cost || 0}">${p.emoji || ''} ${p.name} (متوفر: ${Number(p.stock || 0)})</option>`).join('')}
+            </select>
+        </div>
+        <div class="row-flex">
+            <div class="field" style="flex:1"><label>الكمية</label><input class="input" id="wsQty" type="number" value="1" min="1" oninput="wsCalc()"></div>
+            <div class="field" style="flex:1"><label>السبب</label>
+                <select class="input" id="wsReason">${WASTE_REASONS.map(r => `<option>${r}</option>`).join('')}</select>
+            </div>
+            <div class="field" style="flex:1"><label>الكلفة المقدّرة</label><input class="input" id="wsCost" type="number" value="0"></div>
+        </div>
+        <div class="field"><label>ملاحظة</label><input class="input" id="wsNote" placeholder="تفاصيل إضافية"></div>
+        <p style="font-size:12.5px;color:var(--muted)">⚠️ سيتم خصم الكمية من المخزون تلقائياً.</p>
+    `, `<button class="btn btn-ghost" onclick="closeModal('dynModal')">إلغاء</button>
+        <button class="btn btn-danger" style="flex:1" onclick="saveWaste()"><i class="bi bi-check2"></i> تسجيل الهدر</button>`);
+    wsCalc();
+}
+function wsCalc() {
+    const sel = document.getElementById('wsProd');
+    const cost = Number(sel?.selectedOptions[0]?.dataset.cost || 0);
+    const qty = Number(document.getElementById('wsQty')?.value || 0);
+    const el = document.getElementById('wsCost');
+    if (el) el.value = cost * qty;
+}
+function saveWaste() {
+    const pid = document.getElementById('wsProd').value;
+    const p = getProduct(pid);
+    if (!p) { toast('اختر صنفاً', 'error'); return; }
+    api.addWaste({
+        productId: pid, productName: p.name,
+        qty: Number(document.getElementById('wsQty').value) || 1,
+        reason: document.getElementById('wsReason').value,
+        cost: Number(document.getElementById('wsCost').value) || 0,
+        note: document.getElementById('wsNote').value.trim()
+    });
+    closeModal('dynModal'); renderPayroll(); toast('تم تسجيل الهدر', 'success');
+}
+function delWaste(id) {
+    if (!confirmAction('حذف هذا القيد؟')) return;
+    api.deleteWaste(id); renderPayroll(); toast('تم الحذف', 'success');
+}

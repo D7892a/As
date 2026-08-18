@@ -33,8 +33,7 @@ function renderUsers() {
                     <div class="uc-avatar">${u.avatar || '🧑'}</div>
                     <div class="uc-name">${u.name} ${me ? '<span class="badge badge-success" style="font-size:10px">أنت</span>' : ''}</div>
                     <span class="badge ${ROLE_BADGE[u.role] || 'badge-dark'}">${ROLE_LABEL[u.role] || u.role}</span>
-                    <div class="uc-job">${u.jobTitle || ''}</div>
-                    <div class="user-pay-chip"><i class="bi bi-cash-coin"></i> ${PAY_CYCLES?.[u.payCycle || 'monthly']?.label || 'شهري'} • ${moneyNum(u.salaryRate || 0)}</div>
+                    <div class="uc-job">${u.jobTitle || ''} ${u.salary ? `• ${PAY_CYCLE[u.payCycle || 'monthly']?.label || ''} ${moneyNum(u.salary)}` : ''}</div>
                     <div class="uc-perm-bar"><div style="width:${Math.round(granted / PERM_KEYS.length * 100)}%"></div></div>
                     <div class="uc-perm-txt">${granted} من ${PERM_KEYS.length} صلاحية</div>
                     <div class="uc-meta">
@@ -74,10 +73,17 @@ function openUserForm(id) {
                 <input class="input" id="usPin" value="${u?.pin || ''}" inputmode="numeric" placeholder="4 أرقام" style="letter-spacing:6px;text-align:center"></div>
         </div>
         <div class="row-flex">
-            <div class="field" style="flex:1"><label>نظام الأجر</label><select class="input" id="usPayCycle"><option value="daily" ${u?.payCycle === 'daily' ? 'selected' : ''}>يومي</option><option value="weekly" ${u?.payCycle === 'weekly' ? 'selected' : ''}>أسبوعي</option><option value="monthly" ${!u || !u.payCycle || u.payCycle === 'monthly' ? 'selected' : ''}>شهري</option></select></div>
-            <div class="field" style="flex:1"><label>قيمة الأجر</label><input class="input" id="usSalary" type="number" value="${u?.salaryRate || 0}" placeholder="د.ع"></div>
-            <div class="field" style="flex:1"><label>ساعات الوردية</label><input class="input" id="usShiftHours" type="number" min="1" max="24" value="${u?.shiftHours || 8}"></div>
+            <div class="field" style="flex:1"><label>الراتب الأساسي (د.ع)</label>
+                <input class="input" id="usSalary" type="number" value="${u?.salary || 0}" placeholder="مثال: 25000 يومي أو 600000 شهري"></div>
+            <div class="field" style="flex:1"><label>دورة الراتب</label>
+                <select class="input" id="usCycle">
+                    ${Object.entries(PAY_CYCLE).map(([k, v]) => `<option value="${k}" ${(u?.payCycle || 'monthly') === k ? 'selected' : ''}>${v.label}</option>`).join('')}
+                </select>
+            </div>
+            <div class="field" style="flex:1"><label>تاريخ التعيين</label>
+                <input class="input" id="usHire" type="date" value="${u?.hireDate || ''}"></div>
         </div>
+        <p style="font-size:12.5px;color:var(--muted);margin:-4px 0 10px">يومي = المبلغ عن كل يوم حضور • أسبوعي/شهري = راتب ثابت يُخصم منه الغياب تلقائياً عند توليد الكشف.</p>
         <div class="toggle-row"><div class="tr-info"><h5>الحساب نشط</h5><p>يستطيع تسجيل الدخول للنظام</p></div>
             <label class="switch"><input type="checkbox" id="usActive" ${u ? (u.active !== false ? 'checked' : '') : 'checked'}><span class="slider-sw"></span></label></div>
         <div id="roleHint" class="role-hint"></div>
@@ -108,10 +114,10 @@ function saveUser(id) {
         name, pin, role,
         jobTitle: document.getElementById('usJob').value.trim() || ROLE_LABEL[role],
         avatar: document.querySelector('#usAvatars .avatar-pill.active')?.dataset.a || '🧑‍🍳',
-        payCycle: document.getElementById('usPayCycle').value,
-        salaryRate: Math.max(0, Number(document.getElementById('usSalary').value) || 0),
-        shiftHours: Math.max(1, Number(document.getElementById('usShiftHours').value) || 8),
-        active: document.getElementById('usActive').checked
+        active: document.getElementById('usActive').checked,
+        salary: Number(document.getElementById('usSalary')?.value) || 0,
+        payCycle: document.getElementById('usCycle')?.value || 'monthly',
+        hireDate: document.getElementById('usHire')?.value || ''
     };
     if (id) api.updateUser(id, data);
     else { const u = api.addUser({ ...data, perms: { ...(ROLE_DEFAULTS[role] || {}) } }); }

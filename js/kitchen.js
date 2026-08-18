@@ -51,11 +51,11 @@ function kdsCard(o) {
     <div class="kds-card ${urgency}">
         <div class="kc-head">
             <strong>#${o.number}</strong>
-            <span class="badge badge-dark">${o.orderTypeLabel || ''}${o.tableName ? ' • ' + o.tableName : ''}</span>
+            <span class="badge badge-dark">${o.orderTypeLabel || ''}${o.tableName ? ' • ' + o.tableName : ''}${o.zoneName ? ' • ' + o.zoneName : ''}</span>
             <span class="kc-time"><i class="bi bi-clock"></i> ${mins} د</span>
         </div>
         <ul class="kc-items">
-            ${o.items.map(i => `<li><span class="kc-qty">${i.qty}×</span> ${i.name}</li>`).join('')}
+            ${o.items.map(i => `<li><span class="kc-qty">${i.qty}×</span> ${i.name}${i.note ? ` <em style="color:var(--warning)">(${i.note})</em>` : ''}</li>`).join('')}
         </ul>
         ${o.notes ? `<div class="kc-note"><i class="bi bi-chat-left-text"></i> ${o.notes}</div>` : ''}
         <div class="kc-actions">

@@ -25,7 +25,10 @@ const COMMANDS = [
     { icon: 'bi-grid', label: 'الوجبات', hint: 'صفحة', perm: 'products', run: () => navigate('products') },
     { icon: 'bi-box-seam', label: 'المخزون', hint: 'صفحة', perm: 'inventory', run: () => navigate('inventory') },
     { icon: 'bi-truck-front', label: 'الموردون والمشتريات', hint: 'صفحة', perm: 'suppliers', run: () => navigate('suppliers') },
-    { icon: 'bi-cash-stack', label: 'الرواتب والهدر', hint: 'صفحة', perm: 'payroll', run: () => navigate('payroll') },
+    { icon: 'bi-cash-stack', label: 'الرواتب والحضور', hint: 'صفحة', perm: 'payroll', run: () => navigate('payroll') },
+    { icon: 'bi-fingerprint', label: 'تسجيل حضور / انصراف', hint: 'إجراء', perm: 'attendance', run: () => toggleMyClock() },
+    { icon: 'bi-geo-alt', label: 'مناطق وأسعار التوصيل', hint: 'صفحة', perm: 'delivery', run: () => { navigate('delivery'); setTimeout(() => setDlTab('zones'), 150); } },
+    { icon: 'bi-safe2', label: 'تسوية صندوق السائق', hint: 'صفحة', perm: 'delivery', run: () => { navigate('delivery'); setTimeout(() => setDlTab('settle'), 150); } },
     { icon: 'bi-qr-code', label: 'المنيو الرقمي والتقييمات', hint: 'صفحة', perm: 'qrmenu', run: () => navigate('qrmenu') },
     { icon: 'bi-bar-chart-line', label: 'التقارير', hint: 'صفحة', perm: 'reports', run: () => navigate('reports') },
     { icon: 'bi-safe', label: 'الورديات', hint: 'صفحة', perm: 'shifts', run: () => navigate('shifts') },
@@ -241,7 +244,8 @@ function exportCSV(rows, filename = 'export.csv') {
 function exportOrdersCSV() {
     exportCSV(getOrders().map(o => ({
         'رقم الطلب': o.number, 'التاريخ': fmtDateTime(o.createdAt), 'العميل': o.customerName,
-        'النوع': o.orderTypeLabel, 'الطاولة': o.tableName || '-', 'عدد الأصناف': (o.items || []).reduce((n, i) => n + i.qty, 0),
+        'النوع': o.orderTypeLabel, 'المنطقة': o.zoneName || '-', 'أجرة التوصيل': o.deliveryFee || 0,
+        'الطاولة': o.tableName || '-', 'عدد الأصناف': (o.items || []).reduce((n, i) => n + i.qty, 0),
         'المجموع الفرعي': o.subtotal, 'الضريبة': o.tax, 'الخصم': o.discount, 'الإجمالي': o.total,
         'طريقة الدفع': o.paymentMethod, 'الحالة': o.status, 'الكاشير': o.cashierName
     })), `orders-${new Date().toISOString().slice(0, 10)}.csv`);

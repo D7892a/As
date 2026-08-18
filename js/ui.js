@@ -45,10 +45,10 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') document.q
 const PAGE_TITLES = {
     dashboard: { title: 'لوحة القيادة', sub: 'نظرة شاملة ولحظية على أداء المطعم' },
     pos: { title: 'نقطة البيع', sub: 'إنشاء طلب جديد وإتمام الدفع' },
-    delivery: { title: 'التوصيل (الدليفري)', sub: 'طلبات التوصيل والسائقون والمناطق' },
+    delivery: { title: 'التوصيل (الدليفري)', sub: 'طلبات التوصيل والسائقون وأسعار المناطق' },
     reservations: { title: 'الحجوزات', sub: 'حجز الطاولات مسبقاً وإدارة الضيوف' },
     suppliers: { title: 'الموردون والمشتريات', sub: 'فواتير الشراء وذمم الموردين' },
-    payroll: { title: 'الرواتب والهدر', sub: 'كشوف رواتب الموظفين وسجل التالف' },
+    payroll: { title: 'الرواتب والحضور', sub: 'رواتب يومية / أسبوعية / شهرية + الحضور والسلف والهدر' },
     qrmenu: { title: 'المنيو الرقمي والتقييمات', sub: 'رمز QR للمنيو وآراء الزبائن' },
     orders: { title: 'الطلبات', sub: 'إدارة ومتابعة جميع الطلبات' },
     tables: { title: 'الطاولات', sub: 'إدارة صالة المطعم وحالة الطاولات' },
@@ -207,6 +207,36 @@ function bindImageUpload(containerSel, onPick) {
 
 /* ----- تأكيد ----- */
 function confirmAction(msg) { return confirm(msg); }
+
+/* ----- حضور / انصراف من الشريط الجانبي ----- */
+function toggleMyClock() {
+    const u = currentUser();
+    if (!u) return;
+    if (!getSettings().enableAttendance) { toast('تسجيل الحضور معطّل من الإعدادات', 'warning'); return; }
+    const rec = todayAttendance(u.id);
+    if (!rec || !rec.inAt) doMyClock('in');
+    else if (!rec.outAt) doMyClock('out');
+    else toast('اكتمل دوامك اليوم', 'info');
+    refreshClockBtn();
+}
+function refreshClockBtn() {
+    const btn = document.getElementById('clockBtn');
+    if (!btn) return;
+    const u = currentUser();
+    if (!u || getSettings().enableAttendance === false) { btn.style.display = 'none'; return; }
+    btn.style.display = '';
+    const rec = todayAttendance(u.id);
+    if (!rec || !rec.inAt) {
+        btn.className = 'btn btn-success btn-block btn-sm';
+        btn.innerHTML = '<i class="bi bi-fingerprint"></i> تسجيل حضور';
+    } else if (!rec.outAt) {
+        btn.className = 'btn btn-gold btn-block btn-sm';
+        btn.innerHTML = `<i class="bi bi-box-arrow-right"></i> انصراف • منذ ${fmtTime(rec.inAt)}`;
+    } else {
+        btn.className = 'btn btn-light btn-block btn-sm';
+        btn.innerHTML = `<i class="bi bi-check2-circle"></i> دوام مكتمل ${fmtTime(rec.inAt)}–${fmtTime(rec.outAt)}`;
+    }
+}
 
 /* ----- تهيئة عامة بعد تحميل DOM ----- */
 document.addEventListener('DOMContentLoaded', () => {
