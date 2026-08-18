@@ -39,6 +39,10 @@ function renderDashboard() {
     const busyTables = getTables().filter(t => t.status === 'busy').length;
     const tableRate = getTables().length ? Math.round(busyTables / getTables().length * 100) : 0;
     const activeDeliveries = getDeliveries().filter(d => ['pending', 'assigned', 'onway'].includes(d.status)).length;
+    const lateDeliveries = getDeliveries().filter(d => ['pending','assigned','onway'].includes(d.status) && Date.now() > Number(d.promisedAt || (d.createdAt + Number(getZone(d.zoneId)?.minutes || 30) * 60000))).length;
+    const unsettledCash = getDeliveries().filter(d => d.collectionStatus === 'collected').reduce((s,d)=>s+Number(d.cashToCollect||0),0);
+    const heldCarts = getSuspendedCarts().length;
+    const unpaidPayroll = getPayroll().filter(p => !p.paid).reduce((s,p)=>s+Number(p.net||0),0);
     const todayRes = getReservations().filter(r => r.date === new Date().toISOString().slice(0, 10) && r.status === 'booked').length;
     const lowStock = getProducts().filter(p => Number(p.stock || 0) <= (getSettings().lowStockQty || 5));
     const openShift = getOpenShift();
@@ -68,7 +72,11 @@ function renderDashboard() {
     const alerts = [];
     if (!openShift && getSettings().enableShifts) alerts.push({ t: 'warn', i: 'bi-safe', m: 'لا توجد وردية مفتوحة — افتح وردية لبدء تسجيل الصندوق', a: `navigate('shifts')` });
     if (lowStock.length) alerts.push({ t: 'danger', i: 'bi-box-seam', m: `${lowStock.length} صنف قارب على النفاد أو نفد`, a: `navigate('inventory')` });
-    if (activeDeliveries) alerts.push({ t: 'info', i: 'bi-truck', m: `${activeDeliveries} طلب توصيل جارٍ الآن`, a: `navigate('delivery')` });
+    if (lateDeliveries) alerts.push({ t: 'danger', i: 'bi-stopwatch', m: `${lateDeliveries} توصيل متأخر عن الموعد المتوقع`, a: `_dlTab='orders';navigate('delivery')` });
+    else if (activeDeliveries) alerts.push({ t: 'info', i: 'bi-truck', m: `${activeDeliveries} طلب توصيل جارٍ الآن`, a: `navigate('delivery')` });
+    if (unsettledCash && can('delivery.settlement')) alerts.push({ t: 'warn', i: 'bi-cash-coin', m: `تحصيلات سائقين غير مسوّاة: ${moneyNum(unsettledCash)}`, a: `_dlTab='collections';navigate('delivery')` });
+    if (heldCarts && can('pos')) alerts.push({ t: 'info', i: 'bi-inboxes', m: `${heldCarts} طلب كاشير معلّق بانتظار الاسترجاع`, a: `navigate('pos');setTimeout(openSuspendedCarts,100)` });
+    if (unpaidPayroll && can('payroll')) alerts.push({ t: 'warn', i: 'bi-people', m: `مستحقات موظفين غير مصروفة: ${moneyNum(unpaidPayroll)}`, a: `navigate('payroll')` });
     if (todayRes) alerts.push({ t: 'info', i: 'bi-calendar-check', m: `${todayRes} حجز مؤكد لهذا اليوم`, a: `navigate('reservations')` });
     const debts = getSuppliers().reduce((s, x) => s + Number(x.balance || 0), 0);
     if (debts) alerts.push({ t: 'warn', i: 'bi-wallet', m: `ذمم مستحقة للموردين: ${moneyNum(debts)}`, a: `navigate('suppliers')` });

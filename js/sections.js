@@ -56,7 +56,7 @@ function renderOrders() {
                             <td><span class="badge badge-dark"><i class="bi ${ORDER_TYPES[o.orderType]?.icon || 'bi-bag'}"></i> ${o.orderTypeLabel}</span></td>
                             <td>${o.items.reduce((n, i) => n + i.qty, 0)} صنف</td>
                             <td><strong>${moneyNum(o.total)}</strong></td>
-                            <td>${o.paymentMethod === 'cash' ? 'كاش' : o.paymentMethod === 'card' ? 'بطاقة' : 'إلكتروني'}</td>
+                            <td>${PAY_LABEL[o.paymentMethod] || o.paymentMethod}</td>
                             <td>${o.cashierName || '-'}</td>
                             <td style="font-size:12px;color:var(--muted)">${fmtDateTime(o.createdAt)}</td>
                             <td><span class="badge ${st.cls}"><i class="bi ${st.icon}"></i> ${st.label}</span></td>
@@ -110,11 +110,13 @@ function viewOrder(id) {
             <table class="tbl"><thead><tr><th>الصنف</th><th>السعر</th><th>الكمية</th><th>الإجمالي</th></tr></thead>
             <tbody>${items}</tbody></table>
         </div>
+        ${o.orderType === 'delivery' ? `<div class="delivery-payment-details" style="margin-top:12px"><strong><i class="bi bi-geo-alt"></i> ${getZone(o.zoneId)?.name || 'منطقة غير محددة'}</strong><div style="font-size:12px;margin-top:5px">${o.address || 'لا يوجد عنوان'} • ${o.customerPhone || 'لا يوجد هاتف'}</div></div>` : ''}
         ${o.notes ? `<div style="margin-top:12px;padding:10px;background:var(--cream);border-radius:10px;font-size:13px"><strong>ملاحظات:</strong> ${o.notes}</div>` : ''}
         <div style="margin-top:14px">
             <div class="totals-row"><span>المجموع الفرعي</span><span>${moneyNum(o.subtotal)}</span></div>
             ${o.tax ? `<div class="totals-row"><span>الضريبة</span><span>${moneyNum(o.tax)}</span></div>` : ''}
             ${o.service ? `<div class="totals-row"><span>رسوم خدمة</span><span>${moneyNum(o.service)}</span></div>` : ''}
+            ${o.deliveryFee ? `<div class="totals-row"><span>أجرة التوصيل</span><span>${moneyNum(o.deliveryFee)}</span></div>` : ''}
             ${o.discount ? `<div class="totals-row discount"><span>الخصم</span><span>− ${moneyNum(o.discount)}</span></div>` : ''}
             <div class="totals-row grand"><span>الإجمالي</span><span>${moneyNum(o.total)}</span></div>
         </div>
@@ -355,7 +357,7 @@ function renderSales() {
                         <td style="font-size:12.5px">${fmtDateTime(o.createdAt)}</td>
                         <td>${o.customerName}</td>
                         <td><span class="badge badge-dark">${o.orderTypeLabel}</span></td>
-                        <td>${o.paymentMethod === 'cash' ? 'كاش' : o.paymentMethod === 'card' ? 'بطاقة' : 'إلكتروني'}</td>
+                        <td>${PAY_LABEL[o.paymentMethod] || o.paymentMethod}</td>
                         <td>${o.discount ? '<span style="color:var(--success)">− ' + moneyNum(o.discount) + '</span>' : '—'}</td>
                         <td><strong style="color:var(--primary-dark)">${moneyNum(o.total)}</strong></td>
                     </tr>`).join('') : `<tr><td colspan="7"><div class="empty-state"><i class="bi bi-inbox"></i><p>لا توجد مبيعات في هذه الفترة</p></div></td></tr>`}
