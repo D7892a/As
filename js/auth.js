@@ -24,7 +24,10 @@ const PERMS = [
     { group: 'المال', key: 'shifts', label: 'الورديات وتقفيل الصندوق', desc: 'فتح وإغلاق الوردية', icon: 'bi-safe' },
     { group: 'المال', key: 'reports', label: 'التقارير والتحليلات', desc: 'الرسوم البيانية وتقارير الأداء', icon: 'bi-bar-chart-line' },
 
-    { group: 'العمليات', key: 'delivery', label: 'إدارة التوصيل', desc: 'طلبات الدليفري والسائقون والمناطق', icon: 'bi-truck' },
+    { group: 'العمليات', key: 'delivery', label: 'تشغيل طلبات التوصيل', desc: 'متابعة الطلبات وإسناد السائق وتحديث الحالة', icon: 'bi-truck' },
+    { group: 'العمليات', key: 'delivery.drivers', label: 'إدارة السائقين', desc: 'إضافة وتعديل وإيقاف السائقين وعمولاتهم', icon: 'bi-person-vcard' },
+    { group: 'المال', key: 'delivery.zones', label: 'أسعار ومناطق التوصيل', desc: 'تحديد أجرة كل منطقة والحد الأدنى والتوصيل المجاني', icon: 'bi-geo-alt' },
+    { group: 'المال', key: 'delivery.settlement', label: 'تسوية تحصيل السائقين', desc: 'استلام النقد من السائق وتوثيق العجز أو الزيادة', icon: 'bi-cash-coin' },
     { group: 'العمليات', key: 'reservations', label: 'الحجوزات', desc: 'حجز الطاولات مسبقاً وإدارة الضيوف', icon: 'bi-calendar-check' },
 
     { group: 'القائمة', key: 'suppliers', label: 'الموردون والمشتريات', desc: 'فواتير الشراء وذمم الموردين', icon: 'bi-truck-front' },
@@ -50,7 +53,7 @@ const ROLE_DEFAULTS = {
     manager: {
         pos: true, 'pos.discount': true, 'pos.price': true, 'orders.view': true, 'orders.status': true,
         'orders.cancel': true, 'orders.delete': false, tables: true, kitchen: true,
-        delivery: true, reservations: true,
+        delivery: true, 'delivery.drivers': true, 'delivery.zones': true, 'delivery.settlement': true, reservations: true,
         products: true, categories: true, offers: true, inventory: true,
         suppliers: true, waste: true,
         sales: true, expenses: true, shifts: true, reports: true, customers: true,
@@ -60,7 +63,7 @@ const ROLE_DEFAULTS = {
     cashier: {
         pos: true, 'pos.discount': false, 'pos.price': false, 'orders.view': true, 'orders.status': true,
         'orders.cancel': false, 'orders.delete': false, tables: true, kitchen: true,
-        delivery: true, reservations: true,
+        delivery: true, 'delivery.drivers': false, 'delivery.zones': false, 'delivery.settlement': false, reservations: true,
         products: false, categories: false, offers: false, inventory: false,
         suppliers: false, waste: true,
         sales: false, expenses: false, shifts: true, reports: false, customers: true,

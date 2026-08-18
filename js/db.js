@@ -263,8 +263,9 @@ function migrateDB(db) {
     });
     db.tables.forEach(t => { if (t.status === undefined) t.status = 'free'; });
     db.users.forEach(u => {
-        if (u.salary === undefined) u.salary = 0;
-        if (!u.payCycle) u.payCycle = 'monthly';
+        if (u.salary === undefined) u.salary = Number(u.salaryRate || 0);
+        if (u.salaryRate === undefined) u.salaryRate = Number(u.salary || 0);
+        if (!u.payCycle) u.payCycle = u.salaryCycle || 'monthly';
         if (!Array.isArray(u.workDays)) u.workDays = [0, 1, 2, 3, 4, 5, 6];
         if (u.hireDate === undefined) u.hireDate = '';
     });
@@ -366,8 +367,24 @@ const getRecipe = (productId) => getRecipes()[productId] || null;
 const getAttendance = () => DB.attendance || (DB.attendance = []);
 const getAdvances = () => DB.advances || (DB.advances = []);
 const getHeldOrders = () => DB.heldOrders || (DB.heldOrders = []);
+const getSuspendedCarts = () => getHeldOrders();
 const getSettlements = () => DB.settlements || (DB.settlements = []);
 const getActiveZones = () => getZones().filter(z => z.active !== false);
+
+/* توافق مع لوحة المدير بعد دمج الإصدار الموازي */
+function deliveryUnsettledCash() {
+    return getDeliveries()
+        .filter(d => d.status === 'delivered' && !d.settled && Number(d.collect || d.cashToCollect || 0) > 0)
+        .reduce((s, d) => s + Number(d.collect || d.cashToCollect || 0), 0);
+}
+function openSuspendedCarts() {
+    if (typeof navigate === 'function') navigate('pos');
+    setTimeout(() => {
+        const list = getHeldOrders();
+        if (!list.length) { toast('لا توجد طلبات معلّقة', 'info'); return; }
+        if (typeof restoreHeldOrder === 'function') restoreHeldOrder(list[0].id);
+    }, 180);
+}
 
 const PAY_CYCLE = {
     daily:   { label: 'يومي',    icon: 'bi-sunrise',        unit: 'يوم' },

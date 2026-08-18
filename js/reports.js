@@ -98,7 +98,7 @@ function renderReports() {
                 <h4><i class="bi bi-tags"></i> طرق الطلب والدفع</h4>
                 <div class="chart-canvas-wrap" style="height:140px"><canvas id="chartType"></canvas></div>
                 <div style="margin-top:14px">
-                    ${[['كاش', paySales.cash, 'bi-cash-coin', '#16a34a'], ['بطاقة', paySales.card, 'bi-credit-card', '#2563eb'], ['إلكتروني', paySales.online, 'bi-phone', '#7c3aed']].map(([l, v, i, c]) =>
+                    ${[['كاش', paySales.cash, 'bi-cash-coin', '#16a34a'], ['بطاقة', paySales.card, 'bi-credit-card', '#2563eb'], ['إلكتروني', paySales.online, 'bi-phone', '#7c3aed'], ['مختلط', paySales.split || 0, 'bi-intersect', '#d97706'], ['عند الاستلام', paySales.cod || 0, 'bi-truck', '#c1272d']].map(([l, v, i, c]) =>
                         `<div class="totals-row"><span><i class="bi ${i}" style="color:${c};margin-left:6px"></i> ${l}</span><strong>${moneyNum(v)}</strong></div>`).join('')}
                 </div>
             </div>
