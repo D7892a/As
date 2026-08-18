@@ -34,6 +34,7 @@ function renderUsers() {
                     <div class="uc-name">${u.name} ${me ? '<span class="badge badge-success" style="font-size:10px">أنت</span>' : ''}</div>
                     <span class="badge ${ROLE_BADGE[u.role] || 'badge-dark'}">${ROLE_LABEL[u.role] || u.role}</span>
                     <div class="uc-job">${u.jobTitle || ''}</div>
+                    <div class="user-pay-chip"><i class="bi bi-cash-coin"></i> ${PAY_CYCLES?.[u.payCycle || 'monthly']?.label || 'شهري'} • ${moneyNum(u.salaryRate || 0)}</div>
                     <div class="uc-perm-bar"><div style="width:${Math.round(granted / PERM_KEYS.length * 100)}%"></div></div>
                     <div class="uc-perm-txt">${granted} من ${PERM_KEYS.length} صلاحية</div>
                     <div class="uc-meta">
@@ -72,6 +73,11 @@ function openUserForm(id) {
             <div class="field" style="flex:1"><label>الرمز السري (PIN)</label>
                 <input class="input" id="usPin" value="${u?.pin || ''}" inputmode="numeric" placeholder="4 أرقام" style="letter-spacing:6px;text-align:center"></div>
         </div>
+        <div class="row-flex">
+            <div class="field" style="flex:1"><label>نظام الأجر</label><select class="input" id="usPayCycle"><option value="daily" ${u?.payCycle === 'daily' ? 'selected' : ''}>يومي</option><option value="weekly" ${u?.payCycle === 'weekly' ? 'selected' : ''}>أسبوعي</option><option value="monthly" ${!u || !u.payCycle || u.payCycle === 'monthly' ? 'selected' : ''}>شهري</option></select></div>
+            <div class="field" style="flex:1"><label>قيمة الأجر</label><input class="input" id="usSalary" type="number" value="${u?.salaryRate || 0}" placeholder="د.ع"></div>
+            <div class="field" style="flex:1"><label>ساعات الوردية</label><input class="input" id="usShiftHours" type="number" min="1" max="24" value="${u?.shiftHours || 8}"></div>
+        </div>
         <div class="toggle-row"><div class="tr-info"><h5>الحساب نشط</h5><p>يستطيع تسجيل الدخول للنظام</p></div>
             <label class="switch"><input type="checkbox" id="usActive" ${u ? (u.active !== false ? 'checked' : '') : 'checked'}><span class="slider-sw"></span></label></div>
         <div id="roleHint" class="role-hint"></div>
@@ -102,6 +108,9 @@ function saveUser(id) {
         name, pin, role,
         jobTitle: document.getElementById('usJob').value.trim() || ROLE_LABEL[role],
         avatar: document.querySelector('#usAvatars .avatar-pill.active')?.dataset.a || '🧑‍🍳',
+        payCycle: document.getElementById('usPayCycle').value,
+        salaryRate: Math.max(0, Number(document.getElementById('usSalary').value) || 0),
+        shiftHours: Math.max(1, Number(document.getElementById('usShiftHours').value) || 8),
         active: document.getElementById('usActive').checked
     };
     if (id) api.updateUser(id, data);

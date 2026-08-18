@@ -12,6 +12,15 @@ function renderAdmin() {
     const today = new Date().setHours(0, 0, 0, 0);
     const cancelled = getOrders().filter(o => o.status === 'cancelled').length;
     const todayCount = getOrders().filter(o => o.createdAt >= today).length;
+    const lateDeliveries = getDeliveries().filter(d => ['pending','assigned','onway'].includes(d.status) && Date.now() > Number(d.promisedAt || (d.createdAt + Number(getZone(d.zoneId)?.minutes || 30) * 60000)));
+    const unassigned = getDeliveries().filter(d => d.status === 'pending').length;
+    const unsettledCash = getDeliveries().filter(d => d.collectionStatus === 'collected').reduce((sum,d)=>sum+Number(d.cashToCollect||0),0);
+    const unpaidPayroll = getPayroll().filter(p => !p.paid).reduce((sum,p)=>sum+Number(p.net||0),0);
+    const heldCarts = getSuspendedCarts().length;
+    const missingPayProfiles = getUsers().filter(u => !Number(u.salaryRate || 0)).length;
+    const inactiveZones = getZones().filter(z => z.active === false).length;
+    const riskCount = lateDeliveries.length + (unassigned ? 1 : 0) + (unsettledCash ? 1 : 0) + (unpaidPayroll ? 1 : 0) + (missingPayProfiles ? 1 : 0);
+    const healthScore = Math.max(25, 100 - riskCount * 9);
 
     const tools = [
         { id: 'orders', icon: 'bi-receipt', color: 'danger', title: 'تصفير جميع الطلبات', desc: `حذف ${getOrders().length} طلب من السجل بالكامل`, btn: 'تصفير الطلبات', fn: 'dangerResetOrders()' },
@@ -31,6 +40,7 @@ function renderAdmin() {
         { id: 'reservations', icon: 'bi-calendar-check', color: 'warn', title: 'تصفير الحجوزات', desc: `${getReservations().length} حجز`, btn: 'حذف الحجوزات', fn: 'dangerResetReservations()' },
         { id: 'purchases', icon: 'bi-receipt-cutoff', color: 'danger', title: 'تصفير المشتريات والذمم', desc: `${getPurchases().length} فاتورة شراء`, btn: 'حذف المشتريات', fn: 'dangerResetPurchases()' },
         { id: 'payroll', icon: 'bi-cash-stack', color: 'danger', title: 'تصفير كشوف الرواتب', desc: `${getPayroll().length} قيد راتب`, btn: 'حذف الرواتب', fn: 'dangerResetPayroll()' },
+        { id: 'attendance', icon: 'bi-fingerprint', color: 'warn', title: 'تصفير سجل الحضور', desc: `${getAttendance().length} سجل حضور وانصراف`, btn: 'حذف الحضور', fn: 'dangerResetAttendance()' },
         { id: 'wastes', icon: 'bi-trash3', color: 'warn', title: 'تصفير سجل الهدر', desc: `${getWastes().length} قيد هدر`, btn: 'حذف السجل', fn: 'dangerResetWastes()' },
         { id: 'feedback', icon: 'bi-chat-heart', color: 'warn', title: 'تصفير التقييمات', desc: `${getFeedback().length} تقييم`, btn: 'حذف التقييمات', fn: 'dangerResetFeedback()' },
         { id: 'all', icon: 'bi-exclamation-octagon-fill', color: 'danger', title: 'إعادة ضبط المصنع', desc: 'حذف كل شيء والعودة لحالة النظام الأولى', btn: 'إعادة ضبط كاملة', fn: 'dangerFactoryReset()' }
@@ -45,6 +55,17 @@ function renderAdmin() {
             </div>
             <div class="spacer"></div>
             <button class="btn btn-light" onclick="backupData()"><i class="bi bi-download"></i> نسخة احتياطية قبل التصفير</button>
+        </div>
+
+        <div class="admin-control-grid">
+            <div class="control-score" style="--score:${healthScore * 3.6}deg">
+                <div class="score-ring"><span>${healthScore}%</span></div>
+                <section><strong>سلامة التشغيل</strong><p>${riskCount ? `${riskCount} نقاط تحتاج متابعة` : 'جميع المؤشرات مستقرة'}</p><button class="btn btn-light btn-sm" onclick="runSystemDiagnostics()"><i class="bi bi-activity"></i> فحص النظام</button></section>
+            </div>
+            <div class="control-alert ${lateDeliveries.length ? 'is-danger' : ''}" onclick="navigate('delivery')"><i class="bi bi-stopwatch"></i><section><strong>${lateDeliveries.length}</strong><span>توصيلات متأخرة</span><small>${unassigned} بانتظار سائق</small></section><i class="bi bi-chevron-left"></i></div>
+            <div class="control-alert ${unsettledCash ? 'is-warning' : ''}" onclick="_dlTab='collections';navigate('delivery')"><i class="bi bi-cash-coin"></i><section><strong>${moneyNum(unsettledCash)}</strong><span>تحصيلات مع السائقين</span><small>بانتظار التسوية المالية</small></section><i class="bi bi-chevron-left"></i></div>
+            <div class="control-alert ${unpaidPayroll ? 'is-warning' : ''}" onclick="navigate('payroll')"><i class="bi bi-people"></i><section><strong>${moneyNum(unpaidPayroll)}</strong><span>رواتب غير مصروفة</span><small>${missingPayProfiles} موظفين دون أجر محدد</small></section><i class="bi bi-chevron-left"></i></div>
+            <div class="control-alert" onclick="navigate('pos')"><i class="bi bi-inboxes"></i><section><strong>${heldCarts}</strong><span>طلبات كاشير معلقة</span><small>${inactiveZones} مناطق توصيل موقوفة</small></section><i class="bi bi-chevron-left"></i></div>
         </div>
 
         ${(() => {
@@ -92,12 +113,14 @@ function renderAdmin() {
 
         <div class="card card-pad" style="margin-top:18px">
             <div class="ss-title" style="display:flex;align-items:center">
-                <i class="bi bi-clock-history"></i> سجل النشاط
+                <i class="bi bi-clock-history"></i> سجل الرقابة والنشاط
                 <div class="spacer"></div>
+                <div class="search-box admin-activity-search"><i class="bi bi-search"></i><input class="input input-sm" placeholder="ابحث بالمستخدم أو العملية" oninput="filterAdminActivity(this.value)"></div>
+                <button class="btn btn-light btn-sm" onclick="exportAdminActivityCSV()"><i class="bi bi-filetype-csv"></i> تصدير السجل</button>
                 <button class="btn btn-light btn-sm" onclick="api.resetActivity();renderAdmin();toast('تم تفريغ السجل','success')"><i class="bi bi-eraser"></i> تفريغ السجل</button>
             </div>
-            <div class="activity-list">
-                ${(DB.activity || []).slice(0, 40).map(a => `
+            <div class="activity-list" id="adminActivityList">
+                ${(DB.activity || []).slice(0, 80).map(a => `
                     <div class="act-row act-${a.type}">
                         <span class="act-dot"></span>
                         <div class="act-text">${a.text}</div>
@@ -106,6 +129,33 @@ function renderAdmin() {
                     </div>`).join('') || `<div class="empty-state"><i class="bi bi-clock-history"></i><p>لا يوجد نشاط مسجل</p></div>`}
             </div>
         </div>`;
+}
+
+/* ============ الرقابة والتشخيص ============ */
+function filterAdminActivity(q) {
+    q = (q || '').trim().toLowerCase();
+    document.querySelectorAll('#adminActivityList .act-row').forEach(row => {
+        row.style.display = !q || row.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+}
+function exportAdminActivityCSV() {
+    const rows = [['التاريخ','المستخدم','النوع','العملية'], ...(DB.activity || []).map(a => [fmtDateTime(a.at), a.user, a.type, a.text])];
+    const csv = '﻿' + rows.map(r => r.map(v => `"${String(v ?? '').replace(/"/g,'""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' }), a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = `activity-${new Date().toISOString().slice(0,10)}.csv`; a.click(); URL.revokeObjectURL(a.href);
+    toast('تم تصدير سجل الرقابة', 'success');
+}
+function runSystemDiagnostics() {
+    const checks = [
+        ['قاعدة البيانات', !!DB && Array.isArray(DB.orders), `${getOrders().length} طلب محفوظ`],
+        ['حساب مدير', getUsers().some(u => u.role === 'admin' && u.active !== false), 'وجود مدير نشط ضرورة للاسترجاع'],
+        ['أسعار التوصيل', getZones().filter(z => z.active !== false).every(z => Number(z.fee) >= 0 && Number(z.minutes) > 0), `${getZones().filter(z=>z.active!==false).length} منطقة فعالة`],
+        ['الوردية', !getSettings().enableShifts || !!getOpenShift(), getOpenShift() ? `مفتوحة بواسطة ${getOpenShift().userName}` : 'لا توجد وردية مفتوحة'],
+        ['ملفات الرواتب', getUsers().every(u => Number(u.salaryRate || 0) > 0), `${getUsers().filter(u=>!Number(u.salaryRate||0)).length} دون أجر`],
+        ['تحصيل السائقين', !getDeliveries().some(d => d.collectionStatus === 'collected'), `${moneyNum(getDeliveries().filter(d=>d.collectionStatus==='collected').reduce((s,d)=>s+Number(d.cashToCollect||0),0))} غير مسوّى`],
+        ['النسخة التلقائية', !!getAutoBackupInfo(), getAutoBackupInfo() ? fmtDateTime(getAutoBackupInfo().at) : 'لم تنشأ بعد']
+    ];
+    openModalContent('نتيجة فحص النظام', `<div class="diagnostics-list">${checks.map(([name,ok,detail]) => `<div class="diagnostic-row ${ok?'ok':'warn'}"><i class="bi bi-${ok?'check-circle-fill':'exclamation-triangle-fill'}"></i><div><strong>${name}</strong><span>${detail}</span></div><b>${ok?'سليم':'يحتاج متابعة'}</b></div>`).join('')}</div>`, `<button class="btn btn-primary" style="flex:1" onclick="closeModal('dynModal')">تم</button>`, 'lg');
 }
 
 /* ============ عمليات التصفير (محميّة برمز المدير) ============ */
@@ -176,6 +226,9 @@ function dangerResetPurchases() {
 }
 function dangerResetPayroll() {
     _danger('تصفير كشوف الرواتب', 'سيتم حذف جميع قيود الرواتب (المصروفات المسجّلة تبقى).', () => api.resetPayroll());
+}
+function dangerResetAttendance() {
+    _danger('تصفير سجل الحضور', 'سيتم حذف جميع سجلات الحضور والانصراف. كشوف الرواتب الحالية لن تتغير.', () => api.resetAttendance());
 }
 function dangerResetWastes() {
     _danger('تصفير سجل الهدر', 'سيتم حذف جميع قيود الهدر والتالف (المخزون لا يُعاد).', () => api.resetWastes());
